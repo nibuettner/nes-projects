@@ -39,6 +39,21 @@ Sprites
       |^------- 6   Flips sprite horizontally (if "1")
       ^-------- 7   Flips sprite vertically (if "1")
   - byte 4: X position of the top left corner of the sprite (0-255)
+  - within the sprite buffer (and in OAM itself), every four bytes defines one sprite. So, the first eight bytes of the sprite buffer look like this:
+
+    $0200   Y position of sprite 0 (first sprite)
+    $0201	  Tile number of sprite 0
+    $0202	  Attribute flags for sprite 0
+    $0203	  X position of sprite 0
+    $0204	  Y position of sprite 1 (second sprite)
+    $0205	  Tile number of sprite 1
+    $0206	  Attribute flags for sprite 1
+    $0207	  X position of sprite 1
+
+  Object Attribute Memory (OAM)
+  - the region in PPU memory where sprite data is stored is called "Object Attribute Memory", or "OAM"
+  - this region of memory is different in that there are special MMIO addresses that the CPU can use to update the contents of OAM all at once,
+    at high speed. Being able to update OAM quickly is a necessity for fast-paced games, so that all 64 sprites can move smoothly every frame.
 
 Backgrounds
 -------------------------------------------------------------------------------

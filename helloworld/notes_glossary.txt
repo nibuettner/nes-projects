@@ -1,0 +1,7 @@
+MMIO (Memory-Mapped I/O): special CPU addresses in the range $2000-$6000 that allow interaction with nes devices (like the PPU)
+NMI (Non-Maskable Interrupts): One of the three interrupt vectors; occurs at the end of every frame of graphics
+OAM (Object Attribute Memory): Memory section of the PPU to store sprite data
+PPU (Picture Processing Unit): Graphics unit; draws sprites and backgrounds onto the screen
+VBLANK (Vertical Blank): Reset period after a frame has been displayed on screen;
+  comes from CRT television electron guns returning to the first row after sweeping the screen row per row
+VECTOR:

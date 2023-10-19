@@ -33,6 +33,9 @@ Directives
     includes the code from a file; don't use if file contains opcodes
     -> then use .asm file and export/import
 
+  .incbin <file>
+    includes binary file (like .chr files)
+
   .export <label>
     make a proc available for all other asm files
 
@@ -59,7 +62,6 @@ OpCodes
 
 Addressing modes
 -------------------------------------------------------------------------------
-
   absolute mode: provide a memory address (eg. $3f00)
   immediate mode: provide an exact value (eg. #$3f)
 
@@ -118,10 +120,12 @@ Memory-Mapped I/O (MMIO) addresses
   $2000: PPUCTRL
     for now: bit 7 controls whether or not the PPU will trigger an NMI every frame
 
+  $2003: OAMADDR
+
+  $4014: OAMDMA
 
 Interrupt Vectors
 -------------------------------------------------------------------------------
-
   RESET: The reset vector occurs when the system is first turned on, or when the user presses the Reset button on the front of the console.
   NMI: The NMI vector ("Non-Maskable Interrupt") occurs when the PPU starts preparing the next frame of graphics, 60 times per second.
   IRQ: The IRQ vector ("Interrupt Request") can be triggered by the NES' sound processor or from certain types of cartridge hardware.
@@ -150,3 +154,37 @@ Interrupt Vectors
     ...
     JMP main ;NO return from interrupt as there is nothing to return to when reset is pushed
   .endproc
+
+Sprites
+-------------------------------------------------------------------------------
+- first write to CPU spirte buffer, then write to Object Attribute Memory (OAM) in the PPU
+- sprite buffer on CPU runs from $0200 to $0300 (256 bytes)
+- a sprite is described by 4 bytes of data
+  - byte 1: Y position of the top left corner of the sprite (0-255)
+  - byte 2: Tile number from the sprite pattern table (0-255)
+  - byte 3: Special attribute flags (horizontal/vertical flipping, palette number, etc.)
+    #%76543210
+      ||||||^^- 0-1 Palette for sprite
+      |||^^^--- 2-4 Not used
+      ||^------ 5   Sprite priority (behind background if "1")
+      |^------- 6   Flips sprite horizontally (if "1")
+      ^-------- 7   Flips sprite vertically (if "1")
+  - byte 4: X position of the top left corner of the sprite (0-255)
+  - so, the first eight bytes of the sprite buffer might look like this:
+
+    $0200   Y position of sprite 0 (first sprite)
+    $0201	  Tile number of sprite 0
+    $0202	  Attribute flags for sprite 0
+    $0203	  X position of sprite 0
+    $0204	  Y position of sprite 1 (second sprite)
+    $0205	  Tile number of sprite 1
+    $0206	  Attribute flags for sprite 1
+    $0207	  X position of sprite 1
+
+- Once sprite buffer is ready, we want to transfer it to the PPU:
+  $2003: OAMADDR:
+    the address in the OAM we want to write to (usually $00 to update all the sprite data in the OAM)
+  $4014: OAMDMA:
+    initiates the transfer of an entire page of memory into OAM
+    writing the high byte of a memory address to OAMDMA will transfer that page
+- as OAM in PPU is unstable memory, update OAM every frame (60fps)
