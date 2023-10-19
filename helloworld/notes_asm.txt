@@ -1,0 +1,152 @@
+Directives
+-------------------------------------------------------------------------------
+
+  .segment "<segmentname>"
+    dictate where in the finished ROM file certain pieces of code should go
+
+    STARTUP: doesn't actually do anything; it's needed for C code compiled down to 6502 assembly
+    HEADER: contains information for emulators about what kind of chips are present in the cartridge.
+      is placed at the very beginning of the resulting .nes file.
+
+    The other segments line up to the PRG/CHR split
+
+    CODE: Game code stored in PRG-ROM
+    VECTORS: is a way to specify code that should appear at the very end of the PRG-ROM block
+    CHARS: represents the entire contents of the CHR-ROM, generally included as a binary file
+
+  .res directive (reserve)
+    .res 8192: directive that tells the assembler to "reserve" a certain amount of blank space - in this case, 8,192 bytes
+
+  .byte
+    tells the assembler to insert literal data bytes into the output .nes file
+    .byte $4e, $45, $53, $1a: writes the string "NES<eof>" into the .nes file
+
+  .proc
+    creates lexical scopes in the code; code in a proc is local to the proc;
+    labels you make inside of a .proc are unique to that proc
+
+  .addr
+    given a label, it outputs the memory address that corresponds to that label
+    eg: .addr nmi_handler, reset_handler, irq_handler ;outputs the addresses of the nmi_handler, reset_handler, irq_handler procs
+
+  .include <file>
+    includes the code from a file; don't use if file contains opcodes
+    -> then use .asm file and export/import
+
+  .export <label>
+    make a proc available for all other asm files
+
+  .import <label>
+    import the definition
+
+
+OpCodes
+-------------------------------------------------------------------------------
+
+  LDA, LDX, LDY          ;load data into a register
+  STA, STX, STY          ;store the contents of a register to a memory address
+  TAX, TAY, TXA, TYA     ;transfer (copy!) data from one register to another
+  JMP                    ;jump to a label (can be a proc name)
+  SEI                    ;set interrupt ignore bit - after calling this, interrupts are ignored
+  CLD                    ;clear decimal mode bit - disable "binary-coded decimal" mode - actually not used on the NES but still
+                         ;called in reset handler "just in case"
+  BIT                    ;
+  BPL                    ;
+
+
+  LDA $3f00              ;load contents of memory address $3f00 into the accumulator
+  LDA #$3f               ;load the value $3f into the accumulator
+
+Addressing modes
+-------------------------------------------------------------------------------
+
+  absolute mode: provide a memory address (eg. $3f00)
+  immediate mode: provide an exact value (eg. #$3f)
+
+Memory-Mapped I/O (MMIO) addresses
+-------------------------------------------------------------------------------
+  in the range $2000-$6000
+  special addresses that allow the CPU to communicate with other devices (eg. PPU)
+
+  $2006: PPUADDR
+    points to an address in PPU memory that we want to manipulate;
+    takes two byte values (high/left and low/right)
+
+    This indicates that we want to manipulate PPU address $3f00:
+      LDX #$3f
+      STX $2006
+      LDX #$00
+      STX $2006
+
+  $2007: PPUDATA
+    defines what value we want to write to the selected address in PPUADDR
+
+    This loads a value of #$29 into the accumulator and stores it in PPUDATA:
+      LDA #$29
+      STA $2007
+    Each time you store a byte to PPUDATA, the memory address for the next store
+    (PPUADDR) is incremented by one
+
+  $2002: PPUSTATUS
+    read-only MMIO address; information about what the PPU is currently doing
+    also resets the "address latch" for PPUADDR so that the next write to PPUADDR
+    is always considered a "high" byte of the address
+
+    Always read from PPUSTATUS before manipulating PPUADDR:
+      LDX $2002
+      LDX #$3f
+      STX $2006
+      LDX #$00
+      STX $2006
+      LDA #$29
+      STA $2007
+
+  $2001: PPUMASK
+    allows your code to give the PPU instructions about what to draw, as well as set
+    some tweaks to how colors are displayed
+
+    #%76543210
+      |||||||^- 0 Greyscale mode enable (0: normal color, 1: greyscale)
+      ||||||^-- 1 Left edge (8px) background enable (0: hide, 1: show)
+      |||||^--- 2 Left edge (8px) foreground enable (0: hide, 1: show)
+      ||||^---- 3 Background enable
+      |||^----- 4 Foreground enable
+      ||^------ 5 Emphasize red
+      |^------- 6 Emphasize green
+      ^-------- 7 Emphasize blue
+
+  $2000: PPUCTRL
+    for now: bit 7 controls whether or not the PPU will trigger an NMI every frame
+
+
+Interrupt Vectors
+-------------------------------------------------------------------------------
+
+  RESET: The reset vector occurs when the system is first turned on, or when the user presses the Reset button on the front of the console.
+  NMI: The NMI vector ("Non-Maskable Interrupt") occurs when the PPU starts preparing the next frame of graphics, 60 times per second.
+  IRQ: The IRQ vector ("Interrupt Request") can be triggered by the NES' sound processor or from certain types of cartridge hardware.
+
+  Interrupt vectors are stored at the last 6 bytes of memory:
+  $fffa-$fffb	Start of NMI handler
+  $fffc-$fffd	Start of reset handler
+  $fffe-$ffff	Start of IRQ handler
+  these addresses will contain the addresses of the procs that are called when the specific interrupt occurs
+
+  Because these six bytes of memory are so important, ca65 has a specific segment type for them:
+  .segment "VECTORS"
+  .addr nmi_handler, reset_handler, irq_handler
+
+  .proc irq_handler
+    ...
+    RTI ;return from interrupt
+  .endproc
+
+  .proc nmi_handler
+    ...
+    RTI ;return from interrupt
+  .endproc
+
+  .proc reset_handler
+    ...
+    JMP main ;NO return from interrupt as there is nothing to return to when reset is pushed
+  .endproc
