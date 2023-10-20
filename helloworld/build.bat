@@ -1,8 +1,13 @@
-ca65 helloworld/src/main.asm -o helloworld/build/main.o
-ca65 helloworld/src/reset.asm -o helloworld/build/reset.o
+cd helloworld
+del helloworld.nes
+del build\main.o
+del build\reset.o
 
-ld65 helloworld/build/reset.o ^
-  helloworld/build/main.o ^
-  -C helloworld/nes.cfg -o helloworld/helloworld.nes
+ca65 src/main.asm -o build/main.o
+ca65 src/reset.asm -o build/reset.o
 
-start helloworld/helloworld.nes
+ld65 build/reset.o ^
+  build/main.o ^
+  -C nes.cfg -o helloworld.nes
+
+start helloworld.nes

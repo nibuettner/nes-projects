@@ -1,6 +1,5 @@
 Directives
 -------------------------------------------------------------------------------
-
   .segment "<segmentname>"
     dictate where in the finished ROM file certain pieces of code should go
 
@@ -45,10 +44,13 @@ Directives
 
 OpCodes
 -------------------------------------------------------------------------------
-
   LDA, LDX, LDY          ;load data into a register
   STA, STX, STY          ;store the contents of a register to a memory address
   TAX, TAY, TXA, TYA     ;transfer (copy!) data from one register to another
+  INX, INY               ;increase register value by one
+  INC <addr>             ;increase the value stored at <addr> by 1
+  DEX, DEY               ;decrease register value by one
+  DEC <addr>             ;decrease the value stored at <addr> by 1
   JMP                    ;jump to a label (can be a proc name)
   SEI                    ;set interrupt ignore bit - after calling this, interrupts are ignored
   CLD                    ;clear decimal mode bit - disable "binary-coded decimal" mode - actually not used on the NES but still
@@ -56,14 +58,22 @@ OpCodes
   BIT                    ;
   BPL                    ;
 
-
-  LDA $3f00              ;load contents of memory address $3f00 into the accumulator
-  LDA #$3f               ;load the value $3f into the accumulator
+  BEQ <label>            ;branch if equal to zero
+  BNE <label>            ;branch if not equal to zero
+  BCS <label>            ;branch if carry set
+  BCC <label>            ;branch if carry cleared
+  CMP <value>            ;compare accumulator with value (value - A)
+  CPX <value>            ;compare X register with value (value - X)
+  CPY <value>            ;compare Y register with value (value - Y)
 
 Addressing modes
 -------------------------------------------------------------------------------
   absolute mode: provide a memory address (eg. $3f00)
+    references a single memory address
   immediate mode: provide an exact value (eg. #$3f)
+    references a fixed value
+  indexed mode: provide a memory address and a register (eg. $8000,X)
+    references a memory address that is <value in register> addresses away from the address provided
 
 Memory-Mapped I/O (MMIO) addresses
 -------------------------------------------------------------------------------
@@ -188,3 +198,26 @@ Sprites
     initiates the transfer of an entire page of memory into OAM
     writing the high byte of a memory address to OAMDMA will transfer that page
 - as OAM in PPU is unstable memory, update OAM every frame (60fps)
+
+The Processor Status Register (P)
+-------------------------------------------------------------------------------
+- stores results of operations
+- 8 bit:
+  NV-BDIZC
+  |||||||^- 0  Carry flag: did last op cause a carry?
+  ||||||^-- 1  Zero flag: was last result zero?
+  |||||^--- 2  Interrupt flag
+  ||||^---- 3  Decimal flag: not supported by NES
+  |||^----- 4  Break flag
+  ||^------ 5  Unused
+  |^------- 6  Sign overflow flag: Negative number < -128
+  ^-------- 7  Negative flag: did last result have 1 in bit 7?
+
+IMPORTANT NOTES
+-------------------------------------------------------------------------------
+Branching
+- when using branching opcode, you cannot branch to labels further away than 127 bytes
+  before or 128 bytes after the branch instruction; reason is that the the data that follows a branch
+  command is not a memory address but a signed one-byte number that is added to whatever memory
+  address is in the program counter; this number has to fit in one byte so is a number between
+  -128 and +128

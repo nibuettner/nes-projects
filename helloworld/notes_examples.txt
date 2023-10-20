@@ -1,0 +1,44 @@
+  Load examples
+  -------------------------------------------------------------------------------
+    LDA $3f00              ;load contents of memory address $3f00 into the accumulator
+    LDA #$3f               ;load the value $3f into the accumulator
+
+  Comparison examples
+  -------------------------------------------------------------------------------
+    ;we set the carry flag before subtraction, so it will only be cleared when value < register
+    LDA #$90
+    CMP #$80               ;#$80 - #$90 = #$E0 -> carry flag set, zero flag clear, value < A
+    LDA #$70
+    CMP #$80               ;#$80 - #$70 = #$10 -> carry flag clear, zero flag clear, value > A
+    LDA #$80
+    CMP #$80               ;#$80 - #$80 = #$00 -> carry flag set, zero flag set, value = A
+
+    BEQ VAL_EQ_REG         ;is zero flag set? Only when value = A
+    BCS VAL_LT_REG         ;zero flag clear here (otherwise the branch before would have fired)
+                           ;carry flag set? Only when value < A
+    ;BCC VAL_GT_REG        ;no need to check this as the only remaining case is zero flag clear
+                           ;and carry flag clear
+    ;VAL_GT_REG:           ;not needed
+      ;value > A here
+      JMP CMP_DONE         ;jump to skip branch-specific code
+    VAL_EQ_REG:
+      JMP CMP_DONE         ;skip the following branch
+    VAL_LT_REG:
+      ;no need to jump because done_With_comparison is next
+    CMP_DONE:
+      ;continue with rest of the program
+
+    ;value is equal to register: Carry flag set, zero flag set
+    ;value is smaller than register: Carry flag set, zero flag clear
+    ;value is larger than register: Carry flag clear, zero flag clear
+
+Loop over memory addresses
+-------------------------------------------------------------------------------
+  ;we need 2 registers here, A to hold the value we want to store and X which is our loop index
+  ;for looping over memory addresses
+  LDA #$00                 ;load #$00 into A
+  TAX                      ;copy #$00 from A to X
+  CLEAR_ZEROPAGE:
+    STA $3000,X            ;store value from A (#$00) at address $(3000+X) which clears what was there
+    INX                    ;increase value of X
+    BNE CLEAR_ZEROPAGE     ;stop if zero flag is set (happens when X register wraps around at #$ff)
