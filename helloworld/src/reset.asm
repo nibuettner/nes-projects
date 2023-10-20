@@ -1,7 +1,7 @@
 .include "constants.inc"
 
 .segment "ZEROPAGE"
-.importzp PLAYER_X, PLAYER_Y
+.importzp PLAYER_X, PLAYER_Y, PLAYER_ATTRS
 
 .segment "CODE"
 .import main
@@ -36,6 +36,8 @@ VBLANKWAIT2:
   STA PLAYER_X
   LDA #$a0
   STA PLAYER_Y
+  LDA #%01000000
+  STA PLAYER_ATTRS
 
   JMP main
 .endproc

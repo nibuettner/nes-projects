@@ -58,22 +58,39 @@ OpCodes
   BIT                    ;
   BPL                    ;
 
+  CLC                    ;clear carry bit in processor status register (0) -> do when adding
+  SEC                    ;set carry bit in processor status register (1) -> do when subtracting
+  ADC <value>            ;add to A with carry; sets carry when overflowing
+  SBC <value>            ;subtract from A with carry; clears carry when overflowing
+
+
   BEQ <label>            ;branch if equal to zero
   BNE <label>            ;branch if not equal to zero
   BCS <label>            ;branch if carry set
   BCC <label>            ;branch if carry cleared
-  CMP <value>            ;compare accumulator with value (value - A)
-  CPX <value>            ;compare X register with value (value - X)
-  CPY <value>            ;compare Y register with value (value - Y)
+  CMP <value>            ;compare accumulator with value (A - value)
+  CPX <value>            ;compare X register with value (X - value)
+  CPY <value>            ;compare Y register with value (Y - value)
+
+  JSR <label>            ;jump to subroutine
+  RTS                    ;return from subroutine
+
+  PHA                    ;
+  PHP                    ;
+  PLA                    ;
+  PLP                    ;
 
 Addressing modes
 -------------------------------------------------------------------------------
   absolute mode: provide a memory address (eg. $3f00)
     references a single memory address
+  zero-page addressing: provide a single-byte memory address (eg. $3b)
+    special form of absolute mode; zero-page RAM is much faster than other addresses
   immediate mode: provide an exact value (eg. #$3f)
     references a fixed value
   indexed mode: provide a memory address and a register (eg. $8000,X)
     references a memory address that is <value in register> addresses away from the address provided
+  
 
 Memory-Mapped I/O (MMIO) addresses
 -------------------------------------------------------------------------------
@@ -213,6 +230,62 @@ The Processor Status Register (P)
   |^------- 6  Sign overflow flag: Negative number < -128
   ^-------- 7  Negative flag: did last result have 1 in bit 7?
 
+Zero Page
+-------------------------------------------------------------------------------
+
+Subroutines
+-------------------------------------------------------------------------------
+- named, reusable code fragments (functions)
+- the stack holds addresses of the program code in addresses $0300 to $03ff
+- the stack pointer (S) stores the topmost address of the stack
+- when something is added (push) to the stack for the first time, it is stored in $03ff and the
+  stack pointer is decremented by one
+- when a value is removed from the stack (pop), the stack pointer is incremented by one
+- adding more values to the stack will decrease the stack pointer
+- when the stack pointer reaches $0300 and another value is added, it "overflows" and overwrites old
+  values in the stack -> this is bad! Never have more than 256 addresses in the stack
+- there is no variable scope or lifetime in assembly; registers changed in a subroutine are not local
+  to the subroutine
+
+1 when the 6502 sees a JSR opcode, it pushes the current value of the program counter
+  (the special register that holds the memory address of the next byte to be processed) onto the stack
+2 the program continues at the address of the subroutine
+3 when the 6502 sees an RTS it uses the top address of the stack (pop) to return back to the original code address
+  and continue execution from there
+
+  Subroutine Register Management
+    - when using subroutines, we want to preserve the status of the CPU before making changes to it and
+      at the end of the subroutine, restore that status
+    - we can use the opcodes PHA, and PHP to push the values in the accumulator (A) and the processor status register (P)
+      to the stack and...
+    - ... PLA and PLP to pull the top value from the stack and store it in the accumulator (A) or the
+      processor status register (P)
+    - there are no respective functions for the X and Y register, so we need to transfer those values to A before
+      pushing them to the stack
+    - order is important!
+
+    .proc my_subroutine
+      PHP              ;store processor status register on stack
+      PHA              ;store accumulator value on stack
+      TXA              ;transfer X register to A
+      PHA              ;push A (which now contains the value of X) to the stack
+      TYA              ;transfer Y register to A
+      PHA              ;push A (which now contains the value of Y) to the stack
+
+      ;your actual subroutine code here
+      ;we can now work with X, Y, A and P because we are sure we can restore everything in the end
+
+      ;restore things in reverse order
+      PLA              ;load top value from stack and store it in A (we know this has to be the original Y value)
+      TAY              ;put the value in A into Y
+      PLA              ;load top value from stack and store it in A (we know this has to be the original X value)
+      TAX              ;put the value in A into X
+      PLA              ;load top value from stack and store it in A (this is now the original A)
+      PLP              ;load top value from stack and store it in P (this is now the original P)
+      RTS              ;return
+    .endproc
+
+
 IMPORTANT NOTES
 -------------------------------------------------------------------------------
 Branching
@@ -221,3 +294,4 @@ Branching
   command is not a memory address but a signed one-byte number that is added to whatever memory
   address is in the program counter; this number has to fit in one byte so is a number between
   -128 and +128
+

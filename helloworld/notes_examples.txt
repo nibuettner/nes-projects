@@ -7,30 +7,30 @@
   -------------------------------------------------------------------------------
     ;we set the carry flag before subtraction, so it will only be cleared when value < register
     LDA #$90
-    CMP #$80               ;#$80 - #$90 = #$E0 -> carry flag set, zero flag clear, value < A
+    CMP #$80               ;#$90 - #$80 = #$10 -> carry flag clear, zero flag clear, A > value
     LDA #$70
-    CMP #$80               ;#$80 - #$70 = #$10 -> carry flag clear, zero flag clear, value > A
+    CMP #$80               ;#$70 - #$80 = #$e0 -> carry flag set, zero flag clear, A < value
     LDA #$80
-    CMP #$80               ;#$80 - #$80 = #$00 -> carry flag set, zero flag set, value = A
+    CMP #$80               ;#$80 - #$80 = #$00 -> carry flag set, zero flag set, A = value
 
-    BEQ VAL_EQ_REG         ;is zero flag set? Only when value = A
-    BCS VAL_LT_REG         ;zero flag clear here (otherwise the branch before would have fired)
-                           ;carry flag set? Only when value < A
+    BEQ A_EQ_VAL           ;is zero flag set? Only when value = A
+    BCS A_LT_VAL           ;zero flag clear here (otherwise the branch before would have fired)
+                           ;carry flag set? Only when A < value
     ;BCC VAL_GT_REG        ;no need to check this as the only remaining case is zero flag clear
                            ;and carry flag clear
     ;VAL_GT_REG:           ;not needed
       ;value > A here
       JMP CMP_DONE         ;jump to skip branch-specific code
-    VAL_EQ_REG:
+    A_EQ_VAL:
       JMP CMP_DONE         ;skip the following branch
-    VAL_LT_REG:
+    A_LT_VAL:
       ;no need to jump because done_With_comparison is next
     CMP_DONE:
       ;continue with rest of the program
 
-    ;value is equal to register: Carry flag set, zero flag set
-    ;value is smaller than register: Carry flag set, zero flag clear
-    ;value is larger than register: Carry flag clear, zero flag clear
+    ;A is equal to value: Carry flag set, zero flag set
+    ;A is smaller than value: Carry flag set, zero flag clear
+    ;A is larger than value: Carry flag clear, zero flag clear
 
 Loop over memory addresses
 -------------------------------------------------------------------------------
