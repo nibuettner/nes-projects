@@ -2,6 +2,8 @@
 .include "header.inc"
 
 .segment "ZEROPAGE" ;reserve memory in fast zero-page RAM and assign to variables
+TMPLOBYTE: .res 1
+TMPHIBYTE: .res 1
 PLAYER_X: .res 1       ;reserve 1 byte on zero page for player x pos
 PLAYER_Y: .res 1       ;reserve 1 byte on zero page for player y pos
 PLAYER_DIR: .res 1     ;reserve 1 byte on zero page for player direction
@@ -48,7 +50,7 @@ PLAYER_ATTRS: .res 1     ;reserve 1 byte on zero page for player attributes
   ;PLAYER_X > A -> we want to turn around and start moving left
   LDA #$00                               ;direction "left"
   STA PLAYER_DIR                         ;start moving left
-  LDA #%01000000
+  LDA #%01000000                         ;mirror horizontally
   STA PLAYER_ATTRS
   JMP direction_set                      ;we already chose a direction, so we can skip the left side check
 
@@ -60,7 +62,7 @@ not_at_right_edge:                       ;we might be at left edge, though
   ;PLAYER_X < A -> we want to turn around and start moving right
   LDA #$01                               ;direction "right"
   STA PLAYER_DIR                         ;start moving right
-  LDA #%00000000
+  LDA #%00000000                         ;no mirroring
   STA PLAYER_ATTRS
 
 direction_set:
@@ -87,7 +89,7 @@ exit_subroutine:
 .endproc
 
 .proc draw_player
-  ; save registers
+  ;save registers
   PHP
   PHA
   TXA
@@ -107,7 +109,7 @@ exit_subroutine:
   LDA PLAYER_X         ;load value of PLAYER_X var from zero page into A
   STA $0203            ;store value in the fourth byte of the sprite which is pos X
 
-  ; restore registers and return
+  ;restore registers and return
   PLA
   TAY
   PLA
@@ -123,7 +125,8 @@ exit_subroutine:
 ;main processing
 .export main ;export so main can be referenced in other asm files
 .proc main
-;WRITE PALETTES
+
+; --- LOAD PALETTES -----------------------------------------------------------
   LDX PPUSTATUS        ;load PPUSTATUS to reset address latch
   LDX #$3f             ;load #$3f to X register
   STX PPUADDR          ;store value in X register to high byte of PPUADDR
@@ -139,83 +142,55 @@ LOAD_PALETTES:
   CPX #$20             ;check if loop index in X equals 32 (8 x 4 bytes for 8 palettes)
   BNE LOAD_PALETTES    ;as long as zero flag is not set, loop index is not 32, so continue looping
 
-;LOAD SPRITES
+; --- LOAD SPRITES ------------------------------------------------------------
   LDX #$04             ;loop index
 LOAD_SPRITES:
-  LDA SPRITES,X      ;load data at address (SPRITES+X) into A
-  STA $0200,X        ;store data from A at address ($0200+X) -> sprite buffer
-  INX                ;increase loop index
-  CPX #$10           ;compare X with 16 (4 sprites, 16 bytes; we want to check for equality)
-  BNE LOAD_SPRITES   ;continue loop if X ne 16 (as result of comparison before)
+  LDA SPRITES,X        ;load data at address (SPRITES+X) into A
+  STA $0200,X          ;store data from A at address ($0200+X) -> sprite buffer
+  INX                  ;increase loop index
+  CPX #$10             ;compare X with 16 (4 sprites, 16 bytes; we want to check for equality)
+  BNE LOAD_SPRITES     ;continue loop if X ne 16 (as result of comparison before)
   ;sprites are now loaded into the CPU sprite buffer; during the next VBLANK, they will be transferred
   ;to the PPU OAM by the nmi_handler proc
 
-;BACKGROUNDS
-  ;write a nametable
-  LDA PPUSTATUS
-  LDA #$21
-  STA PPUADDR
-  LDA #$26
-  STA PPUADDR
-  LDX #$07
-  STX PPUDATA
+; --- LOAD BACKGROUNDS --------------------------------------------------------
+  LDA PPUSTATUS         ;read PPU status to reset the high/low latch
+  LDA #$20
+  STA PPUADDR           ;write the high byte of $2000 address
+  LDA #$00
+  STA PPUADDR           ;write the low byte of $2000 address
 
-  LDA PPUSTATUS
-  LDA #$21
-  STA PPUADDR
-  LDA #$27
-  STA PPUADDR
-  LDX #$fe
-  STX PPUDATA
+  LDA #<BACKGROUND      ;load low byte of BACKGROUND's address
+  STA TMPLOBYTE         ;store the address in TMPLOBYTE in the zero page
+  LDA #>BACKGROUND      ;load high byte of BACKGROUND's address
+  STA TMPHIBYTE         ;store the address in TMPHIBYTE in the zero page
+  LDY #$00              ;start Y loop at 0
+  LDX #$04              ;run the X loop 4 times -> 256 (Y; 1 byte) * 4 (X) = 1024
+LOAD_BACKGROUND:
+  LDA (TMPLOBYTE),Y     ;load what is at address stored in TMPLOBYTE+Y to A (this will be a background tile)
+  STA PPUDATA           ;write to PPU
+  INY                   ;Y++
+  BNE LOAD_BACKGROUND   ;Y will be zero when it wraps; it has than run 256 times
+                        ;so we start at Y = 0 again
+  INC TMPHIBYTE         ;increase the address at ZP TMPHIBYTE by 1
+                        ;so we went through 256 addresses of BACKGROUND and go to the next one 
+  DEX                   ;X-- so we can stop after running 4 times
+  BNE LOAD_BACKGROUND   ;if X is not 0, continue the loop, otherwise break
 
-  LDA PPUSTATUS
-  LDA #$21
-  STA PPUADDR
-  LDA #$28
-  STA PPUADDR
-  LDX #$fe
-  STX PPUDATA
-
-  LDA PPUSTATUS
-  LDA #$21
-  STA PPUADDR
-  LDA #$46
-  STA PPUADDR
-  LDX #$fe
-  STX PPUDATA
-
-  LDA PPUSTATUS
-  LDA #$21
-  STA PPUADDR
-  LDA #$47
-  STA PPUADDR
-  LDX #$fe
-  STX PPUDATA
-
-  LDA PPUSTATUS
-  LDA #$21
-  STA PPUADDR
-  LDA #$48
-  STA PPUADDR
-  LDX #$fe
-  STX PPUDATA
-
-  ;finally, attribute table
-  LDA PPUSTATUS
+; --- LOAD BACKGROUND ATTRIBUTES ----------------------------------------------
+  LDA PPUSTATUS         ;read PPU status to reset the high/low latch
   LDA #$23
-  STA PPUADDR
-  LDA #$d1
-  STA PPUADDR
-  LDA #%00000100
-  STA PPUDATA
-
-  LDA PPUSTATUS
-  LDA #$23
-  STA PPUADDR
-  LDA #$d2
-  STA PPUADDR
-  LDA #%00000000
-  STA PPUDATA
+  STA PPUADDR           ;write the high byte of $23C0 address
+  LDA #$C0
+  STA PPUADDR           ;write the low byte of $23C0 address
+  LDX #$00              ;start out at 0
+LOAD_BGATTR:
+  LDA BGATTR, X         ;load data from address (BGATTR + the value in x)
+  STA PPUDATA           ;write to PPU
+  INX                   ;X = X + 1
+  CPX #$40              ;Compare X to hex $40, decimal 64 - copying 64 bytes
+  BNE LOAD_BGATTR       ;Branch to LOAD_BGATTR if compare was Not Equal to zero
+  ;if compare was equal to 64, keep going down
 
 VBLANKWAIT:            ;wait for another vblank before continuing
   BIT PPUSTATUS
@@ -235,25 +210,69 @@ INFINITELOOP:
 ;read-only data
 .segment "RODATA"
 PALETTES:
-.byte $0f, $09, $19, $29
-.byte $0f, $03, $13, $23
-.byte $0f, $05, $15, $25
-.byte $0f, $01, $11, $21
-.byte $0f, $15, $05, $30
-.byte $0f, $13, $03, $30
-.byte $0f, $12, $02, $30
-.byte $0f, $16, $06, $30
+  .byte $0f, $09, $19, $29
+  .byte $0f, $03, $13, $23
+  .byte $0f, $05, $15, $25
+  .byte $0f, $01, $11, $21
+
+  .byte $0f, $15, $05, $30
+  .byte $0f, $13, $03, $30
+  .byte $0f, $12, $02, $30
+  .byte $0f, $16, $06, $30
 
 SPRITES:
-;     Y-coord of sprite
-;     |    tile number of sprite from sprite set
-;     |    |    attributes of sprite
-;     |    |    |          X-coord of sprite
-;     |    |    |          |
-.byte $70, $01, %00000000, $40
-.byte $70, $02, %00000001, $4A
-.byte $70, $01, %00000010, $54
-.byte $70, $02, %00000011, $5E
+  ;     Y-coord of sprite
+  ;     |    tile number of sprite from sprite set
+  ;     |    |    attributes of sprite
+  ;     |    |    |          X-coord of sprite
+  ;     |    |    |          |
+  .byte $70, $01, %00000000, $40
+  .byte $70, $02, %00000001, $4A
+  .byte $70, $01, %00000010, $54
+  .byte $70, $02, %00000011, $5E
+
+BACKGROUND:
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$06,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$06,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$07,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$02,$00,$00,$00,$00,$00,$00,$00,$00,$05,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$05,$06,$00,$00,$00,$00,$00,$00,$00,$05,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$05,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$07,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$01,$02,$00,$00,$00,$00,$06,$00,$00,$00,$00,$00,$05,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$03,$04,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$07,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$05,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$05,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$01,$02,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$03,$04,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$06,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$07,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+	.byte $00,$00,$00,$06,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+
+BGATTR:
+  .byte %01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101
+  .byte %01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101
+  .byte %01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101
+  .byte %01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101
+  .byte %01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101
+  .byte %01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101
+  .byte %01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101
+  .byte %01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101,%01010101
+
 ;/.segment "RODATA"
 
 ;special addresses to handle important events
