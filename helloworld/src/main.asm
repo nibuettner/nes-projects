@@ -167,13 +167,14 @@ LOAD_SPRITES:
   LDY #$00              ;start Y loop at 0
   LDX #$04              ;run the X loop 4 times -> 256 (Y; 1 byte) * 4 (X) = 1024
 LOAD_BACKGROUND:
-  LDA (TMPLOBYTE),Y     ;load what is at address stored in TMPLOBYTE+Y to A (this will be a background tile)
+  LDA (TMPLOBYTE),Y     ;load a 16 bit address from TMPLOBYTE (starting with low byte) + Y, so we get the
+                        ;16 bit address of the current BACKGROUND tile in the loop
   STA PPUDATA           ;write to PPU
   INY                   ;Y++
   BNE LOAD_BACKGROUND   ;Y will be zero when it wraps; it has than run 256 times
                         ;so we start at Y = 0 again
   INC TMPHIBYTE         ;increase the address at ZP TMPHIBYTE by 1
-                        ;so we went through 256 addresses of BACKGROUND and go to the next one 
+                        ;so we went through 256 addresses of BACKGROUND and go to the next one
   DEX                   ;X-- so we can stop after running 4 times
   BNE LOAD_BACKGROUND   ;if X is not 0, continue the loop, otherwise break
 
