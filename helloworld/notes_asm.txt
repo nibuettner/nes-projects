@@ -44,41 +44,45 @@ Directives
 
 OpCodes
 -------------------------------------------------------------------------------
-  LDA, LDX, LDY          ;load data into a register
-  STA, STX, STY          ;store the contents of a register to a memory address
-  TAX, TAY, TXA, TYA     ;transfer (copy!) data from one register to another
-  INX, INY               ;increase register value by one
-  INC <addr>             ;increase the value stored at <addr> by 1
-  DEX, DEY               ;decrease register value by one
-  DEC <addr>             ;decrease the value stored at <addr> by 1
-  JMP                    ;jump to a label (can be a proc name)
-  SEI                    ;set interrupt ignore bit - after calling this, interrupts are ignored
-  CLD                    ;clear decimal mode bit - disable "binary-coded decimal" mode - actually not used on the NES but still
-                         ;called in reset handler "just in case"
-  BIT                    ;
-  BPL                    ;
+  LDA, LDX, LDY          ; load data into a register
+  STA, STX, STY          ; store the contents of a register to a memory address
+  TAX, TAY, TXA, TYA     ; transfer (copy!) data from one register to another
+  INX, INY               ; increase register value by one
+  INC <addr>             ; increase the value stored at <addr> by 1
+  DEX, DEY               ; decrease register value by one
+  DEC <addr>             ; decrease the value stored at <addr> by 1
+  JMP                    ; jump to a label (can be a proc name)
+  SEI                    ; set interrupt ignore bit - after calling this, interrupts are ignored
+  CLD                    ; clear decimal mode bit - disable "binary-coded decimal" mode - actually not used on the NES but still
+                         ; called in reset handler "just in case"
+  BIT                    ; 
+  BPL                    ; 
 
-  CLC                    ;clear carry bit in processor status register (0) -> do when adding
-  SEC                    ;set carry bit in processor status register (1) -> do when subtracting
-  ADC <value>            ;add to A with carry; sets carry when overflowing
-  SBC <value>            ;subtract from A with carry; clears carry when overflowing
+  CLC                    ; clear carry bit in processor status register (0) -> do when adding
+  SEC                    ; set carry bit in processor status register (1) -> do when subtracting
+  ADC <value>            ; add to A with carry; sets carry when overflowing
+  SBC <value>            ; subtract from A with carry; clears carry when overflowing
 
+  AND <value>            ; bitwise AND: accumulator AND value - stored in A
+  ORA <value>            ; bitwise OR: accumulator OR value - stored in A
+  EOR <value>            ; bitwise XOR: accumulator XOR value (true, if either of the inputs are true but NOT BOTH) - stored in A
 
-  BEQ <label>            ;branch if equal to zero
-  BNE <label>            ;branch if not equal to zero
-  BCS <label>            ;branch if carry set
-  BCC <label>            ;branch if carry cleared
-  CMP <value>            ;compare accumulator with value (A - value)
-  CPX <value>            ;compare X register with value (X - value)
-  CPY <value>            ;compare Y register with value (Y - value)
+  BEQ <label>            ; branch if equal to zero
+  BNE <label>            ; branch if not equal to zero
+  BCS <label>            ; branch if carry set
+  BCC <label>            ; branch if carry cleared
+  
+  CMP <value>            ; compare accumulator with value (A - value)
+  CPX <value>            ; compare X register with value (X - value)
+  CPY <value>            ; compare Y register with value (Y - value)
 
-  JSR <label>            ;jump to subroutine
-  RTS                    ;return from subroutine
+  JSR <label>            ; jump to subroutine
+  RTS                    ; return from subroutine
 
-  PHA                    ;
-  PHP                    ;
-  PLA                    ;
-  PLP                    ;
+  PHA                    ; 
+  PHP                    ; 
+  PLA                    ; 
+  PLP                    ; 
 
 Addressing modes
 -------------------------------------------------------------------------------
@@ -146,6 +150,23 @@ Memory-Mapped I/O (MMIO) addresses
 
   $2000: PPUCTRL
     for now: bit 7 controls whether or not the PPU will trigger an NMI every frame
+
+    7  bit  0
+    ---- ----
+    VPHB SINN
+    |||| ||||
+    |||| ||++- Base nametable address
+    |||| ||    (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
+    |||| |+--- VRAM address increment per CPU read/write of PPUDATA
+    |||| |     (0: add 1, going across; 1: add 32, going down)
+    |||| +---- Sprite pattern table address for 8x8 sprites
+    ||||       (0: $0000; 1: $1000; ignored in 8x16 mode)
+    |||+------ Background pattern table address (0: $0000; 1: $1000)
+    ||+------- Sprite size (0: 8x8 pixels; 1: 8x16 pixels – see PPU OAM#Byte 1)
+    |+-------- PPU master/slave select
+    |          (0: read backdrop from EXT pins; 1: output color on EXT pins)
+    +--------- Generate an NMI at the start of the
+              vertical blanking interval (0: off; 1: on)
 
   $2003: OAMADDR
 
