@@ -7,6 +7,9 @@ TMP: .res 1
 TMPLOBYTE: .res 1
 TMPHIBYTE: .res 1
 
+PAD1: .res 1
+PAD2: .res 1
+
 PLAYER_X: .res 1        ; reserve 1 byte on zero page for player x pos
 PLAYER_Y: .res 1        ; reserve 1 byte on zero page for player y pos
 PLAYER_DIR: .res 1      ; reserve 1 byte on zero page for player direction
@@ -15,6 +18,7 @@ PLAYER_ATTRS: .res 1    ; reserve 1 byte on zero page for player attributes
 SCROLL: .res 1          ; scroll position
 PPUCTRL_SETTINGS: .res 1
 .exportzp TMPLOBYTE, TMPHIBYTE, PLAYER_X, PLAYER_Y, PLAYER_DIR, PLAYER_ATTRS ; export for use in other asm files
+.exportzp PAD1, PAD2
 
 ; special addresses to handle important events
 .segment "VECTORS"
@@ -87,6 +91,12 @@ SET_SCROLL_POS:
 .proc main
   LDA #0              ; scroll max value
   STA SCROLL
+
+  LDA #%00000001
+  STA PAD1
+
+  LDA #%00000001
+  STA PAD2
 
 ; --- LOAD PALETTES -----------------------------------------------------------
   LDX PPUSTATUS         ; load PPUSTATUS to reset address latch

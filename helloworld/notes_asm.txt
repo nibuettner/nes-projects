@@ -71,10 +71,15 @@ OpCodes
   BNE <label>            ; branch if not equal to zero
   BCS <label>            ; branch if carry set
   BCC <label>            ; branch if carry cleared
-  
+
   CMP <value>            ; compare accumulator with value (A - value)
   CPX <value>            ; compare X register with value (X - value)
   CPY <value>            ; compare Y register with value (Y - value)
+
+  ASL <address>/A        ; bitwise shift to the left
+  LSR <address>/A        ; bitwise shift to the right
+  ROR <address>/A        ; bitwise rotate right
+  ROL <address>/A        ; bitwise rotate left
 
   JSR <label>            ; jump to subroutine
   RTS                    ; return from subroutine
