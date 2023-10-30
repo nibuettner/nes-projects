@@ -17,3 +17,6 @@ BTN_START          = %00010000
 BTN_SELECT         = %00100000
 BTN_B              = %01000000
 BTN_A              = %10000000
+
+MAX_NUM_ENEMIES    = 5
+MAX_NUM_BULLETS    = 3
