@@ -28,9 +28,13 @@ JOYPAD2: .res 1
 
 PLAYER_X: .res 1        ; reserve 1 byte on zero page for player x pos
 PLAYER_Y: .res 1        ; reserve 1 byte on zero page for player y pos
+PLAYER_VEL_Y: .res 1
 PLAYER_DIR: .res 1      ; reserve 1 byte on zero page for player direction
 PLAYER_ATTRS: .res 1    ; reserve 1 byte on zero page for player attributes
-.exportzp PLAYER_X, PLAYER_Y, PLAYER_DIR, PLAYER_ATTRS
+.exportzp PLAYER_X, PLAYER_Y, PLAYER_VEL_Y, PLAYER_DIR, PLAYER_ATTRS
+
+COLLISION_MAP: .res 30
+.exportzp COLLISION_MAP
 
 SCROLL: .res 1          ; scroll position
 PPUCTRL_SETTINGS: .res 1
@@ -141,6 +145,17 @@ LOAD_PALETTES:
 ;                         ; to the PPU OAM by the nmi_handler proc
 
   JSR setup_enemies
+
+  LDA #<BG1_COLLISION   ; load low byte of BACKGROUND's address
+  STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
+  LDA #>BG1_COLLISION   ; load high byte of BACKGROUND's address
+  STA TMPHIBYTE         ; store the address in TMPHIBYTE in the zero page
+
+LOAD_COLLISION_MAP:
+  LDA (TMPLOBYTE),Y     ; load a 16 bit address from TMPLOBYTE (starting with low byte) + Y, so we get the
+                        ; 16 bit address of the current BACKGROUND tile in the loop
+  STA COLLISION_MAP,Y
+  BNE LOAD_COLLISION_MAP
 
 VBLANKWAIT:             ; wait for another vblank before continuing
   BIT PPUSTATUS

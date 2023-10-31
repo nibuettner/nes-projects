@@ -26,3 +26,5 @@ BTN_A              = %10000000
 
 MAX_NUM_ENEMIES    = 5
 MAX_NUM_BULLETS    = 3
+
+GRAVITY            = 1
