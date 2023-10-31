@@ -6,14 +6,16 @@
 .import draw_player
 .import draw_background
 .import reset_handler
+.import draw_text
 .import read_input
 .import setup_enemies
 .import process_enemies
 .import draw_enemy
 
-.segment "ZEROPAGE" ; reserve memory in fast zero-page RAM and assign to variables
+; --- ZEROPAGE ----------------------------------------------------------------
 
-SLEEPING: .res 1         ; nothing more to do than waiting for VBLANK
+.segment "ZEROPAGE" ; reserve memory in fast zero-page RAM and assign to variables
+SLEEPING: .res 1
 
 TMP: .res 1
 TMPLOBYTE: .res 1
@@ -33,7 +35,6 @@ PLAYER_ATTRS: .res 1    ; reserve 1 byte on zero page for player attributes
 SCROLL: .res 1          ; scroll position
 PPUCTRL_SETTINGS: .res 1
 
-; --- ENEMIES -----------------------------------------------------------------
 ; enemy object pool
 ENEMY_Xs: .res MAX_NUM_ENEMIES
 ENEMY_Ys: .res MAX_NUM_ENEMIES
@@ -52,13 +53,17 @@ ENEMY_TIMER: .res 1
 BULLET_Xs: .res MAX_NUM_BULLETS
 BULLET_Ys: .res MAX_NUM_BULLETS
 
-; special addresses to handle important events
-.segment "VECTORS"
-.addr nmi_handler, reset_handler, irq_handler
-; /.segment "VECTORS"
+; --- VECTORS -----------------------------------------------------------------
+
+.segment "VECTORS" ; special addresses to handle important events
+.word nmi_handler
+.word reset_handler
+.word irq_handler
+
+; --- CODE --------------------------------------------------------------------
 
 .segment "CODE" ; 32KB as defined in the header
-.proc irq_handler ; dunno
+.proc irq_handler
   RTI
 .endproc ; /.proc irq_handler
 
@@ -105,11 +110,30 @@ LOAD_PALETTES:
   LDX #$24
   JSR draw_background
 
+; --- TEXT DISPLAY ------------------------------------------------------------
+  LDA #<HELLO           ; load low byte of HELLO's address
+  STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
+  LDA #>HELLO           ; load high byte of HELLO's address
+  STA TMPHIBYTE         ; store the address in TMPHIBYTE in the zero page
+  LDX #$20              ; draw_text expects X and Y to contain tile indexes
+  LDY #$D0              ; of where the text is to be displayed
+
+  JSR draw_text
+
+  LDA #<HI           ; load low byte of HELLO's address
+  STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
+  LDA #>HI           ; load high byte of HELLO's address
+  STA TMPHIBYTE         ; store the address in TMPHIBYTE in the zero page
+  LDX #$21              ; draw_text expects X and Y to contain tile indexes
+  LDY #$F0              ; of where the text is to be displayed
+
+  JSR draw_text
+
 ; --- PLAYER SPRITES (just for testing) -----------------------------------------
 ;   LDX #$04              ; loop index, skip first sprite as it is handled by draw_player
 ; LOAD_SPRITES:
 ;   LDA SPRITES, X        ; load data at address (SPRITES+X) into A
-;   STA $0200, X          ; store data from A at address ($0200+X) -> sprite buffer
+;   STA OAMBUFF, X          ; store data from A at address ($0200+X) -> sprite buffer
 ;   INX                   ; increase loop index
 ;   CPX #$10              ; compare X with 16 (4 sprites, 16 bytes; we want to check for equality)
 ;   BNE LOAD_SPRITES      ; continue loop if X ne 16 (as result of comparison before)
@@ -155,14 +179,12 @@ DRAW_ENEMIES:
   CMP #255              ; did we scroll to the end of a nametable?
                         ; as we increase SCROLL. check for 255
   BNE SET_SCROLL_POS
-
   ; if yes, update base nametable settings
   LDA PPUCTRL_SETTINGS
   EOR #%00000001        ; flip bit #0 to its opposite 00: $2000, 01: $2400
   STA PPUCTRL_SETTINGS
-
 SET_SCROLL_POS:
-  INC SCROLL            ; scroll to the left, if SCROLL is 255 this will wrap to 0
+  ;INC SCROLL            ; scroll to the left, if SCROLL is 255 this will wrap to 0
 
   ; nothing more to do, wait for next VBLANK
   INC SLEEPING
@@ -176,6 +198,14 @@ SLEEP:
 ; is called every frame on VBLANK
 ; handle all graphics updates here
 .proc nmi_handler
+  ; push registers onto the stack
+  PHP
+  PHA
+  TXA
+  PHA
+  TYA
+  PHA
+
   LDA #$00              ; load literal value #$00 into accumulator
   STA OAMADDR           ; prepare OAM; we want to write sprite data to beginning of OAM
   LDA #$02              ; load high byte #$02 into acc
@@ -195,9 +225,16 @@ SLEEP:
   LDA #$00
   STA SLEEPING
 
+  ; restore registers
+  PLA
+  TAY
+  PLA
+  TAX
+  PLA
+  PLP
+
   RTI                   ; return from interrupt
 .endproc ; /.proc nmi_handler
-; /.segment "CODE"
 
 ; --- DATA --------------------------------------------------------------------
 ; read-only data
@@ -225,11 +262,15 @@ SPRITES:
   .byte $70,$02,%00000001,$4A
   .byte $70,$01,%00000010,$54
   .byte $70,$02,%00000011,$5E
-; /.segment "RODATA"
+
+HELLO:
+  .byte "HELLO WORLD",0
+
+HI:
+  .byte "HI THERE",0
 
 ; --- GRAPHICS ----------------------------------------------------------------
 ; graphical data
 .segment "CHR" ; 8KB as defined in the header
 .incbin "../chr/sprites.chr" ; 4KB sprites table
 .incbin "../chr/backgrounds.chr" ; 4KB backgrounds table
-; /.segment "CHARS"

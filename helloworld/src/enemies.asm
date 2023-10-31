@@ -13,12 +13,12 @@
 .export process_enemies
 
 .proc setup_enemies
-  PHP
-  PHA
-  TXA
-  PHA
-  TYA
-  PHA
+  ; PHP
+  ; PHA
+  ; TXA
+  ; PHA
+  ; TYA
+  ; PHA
 
   ; set up enemy slots
   LDA #$00
@@ -60,23 +60,23 @@ SETUP_ENEMY_X:
   CPX #MAX_NUM_ENEMIES
   BNE SETUP_ENEMY_X
 
-  PLA
-  TAY
-  PLA
-  TAX
-  PLA
-  PLP
+  ; PLA
+  ; TAY
+  ; PLA
+  ; TAX
+  ; PLA
+  ; PLP
   
   RTS
 .endproc
 
 .proc update_enemy
-  PHP
-  PHA
-  TXA
-  PHA
-  TYA
-  PHA
+  ; PHP
+  ; PHA
+  ; TXA
+  ; PHA
+  ; TYA
+  ; PHA
 
   ; Check if this enemy is active.
   LDX CURRENT_ENEMY
@@ -104,23 +104,23 @@ SETUP_ENEMY_X:
   STA ENEMY_FLAGs, X
 
 DONE:
-  PLA
-  TAY
-  PLA
-  TAX
-  PLA
-  PLP
+  ; PLA
+  ; TAY
+  ; PLA
+  ; TAX
+  ; PLA
+  ; PLP
 
   RTS
 .endproc
 
 .proc draw_enemy
-  PHP
-  PHA
-  TXA
-  PHA
-  TYA
-  PHA
+  ; PHP
+  ; PHA
+  ; TXA
+  ; PHA
+  ; TYA
+  ; PHA
 
   ; check if the enemy is active.
   LDX CURRENT_ENEMY     ; store what is at address of CURRENT_ENEMY in X
@@ -230,25 +230,25 @@ OAM_ADDRESS_FOUND:
   ; STA $0200, Y
 
 DONE:
-  PLA
-  TAY
-  PLA
-  TAX
-  PLA
-  PLP
-  RTS
+  ; PLA
+  ; TAY
+  ; PLA
+  ; TAX
+  ; PLA
+  ; PLP
+  ; RTS
   
   RTS
 .endproc
 
 .proc process_enemies
   ; Push registers onto the stack
-  PHP
-  PHA
-  TXA
-  PHA
-  TYA
-  PHA
+  ; PHP
+  ; PHA
+  ; TXA
+  ; PHA
+  ; TYA
+  ; PHA
 
   ; Start with enemy zero.
   LDX #$00
@@ -312,12 +312,12 @@ DECREMENT:
 
 DONE:
   ; Restore registers, then return
-  PLA
-  TAY
-  PLA
-  TAX
-  PLA
-  PLP
+  ; PLA
+  ; TAY
+  ; PLA
+  ; TAX
+  ; PLA
+  ; PLP
 
   RTS
 .endproc

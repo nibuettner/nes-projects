@@ -5,7 +5,13 @@ PPUSCROLL          = $2005
 PPUADDR            = $2006
 PPUDATA            = $2007
 OAMADDR            = $2003
+DMCIRQ             = $4010
 OAMDMA             = $4014
+OAMBUFF            = $0200
+
+APUSOUND           = $4015
+APUIRQ             = $4017
+
 
 CONTROLLER1        = $4016
 CONTROLLER2        = $4017

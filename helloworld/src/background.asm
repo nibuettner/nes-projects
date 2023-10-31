@@ -5,6 +5,7 @@
 
 .segment "CODE"
 .export draw_background
+.export draw_text
 
 .proc draw_background
 ; TMPLOBYTE contains low byte of background nametable definition
@@ -34,3 +35,40 @@ LOAD_BACKGROUND:
 
   RTS
 .endproc
+
+.proc draw_text
+  LDA PPUSTATUS         ; read PPU status to reset the high/low latch
+  STX PPUADDR           ; write the high byte of $2000 address
+  STY PPUADDR           ; write the low byte of $2000 address
+
+  LDY #$00              ; start Y loop at 0
+  LOAD_TEXT:
+    LDA (TMPLOBYTE), Y
+    BEQ EXIT
+    CLC
+    ADC #$99
+    STA PPUDATA
+    INY
+    BNE LOAD_TEXT
+
+EXIT:
+  RTS
+.endproc
+
+; .proc draw_text_rep
+;   LDX #$21              ; draw_text expects X and Y to contain tile indexes
+;   LDY #$F0              ; of where the text is to be displayed
+
+;   LDA PPUSTATUS         ; read PPU status to reset the high/low latch
+;   STX PPUADDR           ; write the high byte of $2000 address
+;   STY PPUADDR           ; write the low byte of $2000 address
+  
+;   .repeat .strlen("WASD"), I
+;     lda #.strat("WASD", I)
+;     CLC
+;     ADC #$99
+;     sta PPUDATA
+;   .endrep
+
+;   RTS
+; .endproc

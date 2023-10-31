@@ -2,3 +2,9 @@
 http://www.6502.org/tutorials/6502opcodes.html
 https://famicom.party/
 http://thevirtualmountain.com/nes/2017/03/13/graphics-and-creating-backgrounds.html
+
+https://nerdy-nights.nes.science/#advanced_tutorial-0
+https://github.com/battlelinegames/nes-starter-kit/blob/master/README.md
+https://cc65.github.io/doc/ca65.html
+https://shiru.untergrund.net/code.shtml
+https://github.com/jmk/cc65-nes-examples/tree/master
