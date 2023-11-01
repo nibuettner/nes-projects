@@ -1,30 +1,36 @@
-PPUCTRL            = $2000
-PPUMASK            = $2001
-PPUSTATUS          = $2002
-PPUSCROLL          = $2005
-PPUADDR            = $2006
-PPUDATA            = $2007
-OAMADDR            = $2003
-DMCIRQ             = $4010
-OAMDMA             = $4014
-OAMBUFF            = $0200
+PPUCTRL              = $2000
+PPUMASK              = $2001
+PPUSTATUS            = $2002
+PPUSCROLL            = $2005
+PPUADDR              = $2006
+PPUDATA              = $2007
+OAMADDR              = $2003
+DMCIRQ               = $4010
+OAMDMA               = $4014
+OAMBUFF              = $0200
 
-APUSOUND           = $4015
-APUIRQ             = $4017
+APUSOUND             = $4015
+APUIRQ               = $4017
 
+CONTROLLER1          = $4016
+CONTROLLER2          = $4017
+BTN_RIGHT            = %00000001
+BTN_LEFT             = %00000010
+BTN_DOWN             = %00000100
+BTN_UP               = %00001000
+BTN_START            = %00010000
+BTN_SELECT           = %00100000
+BTN_B                = %01000000
+BTN_A                = %10000000
 
-CONTROLLER1        = $4016
-CONTROLLER2        = $4017
-BTN_RIGHT          = %00000001
-BTN_LEFT           = %00000010
-BTN_DOWN           = %00000100
-BTN_UP             = %00001000
-BTN_START          = %00010000
-BTN_SELECT         = %00100000
-BTN_B              = %01000000
-BTN_A              = %10000000
+MAX_NUM_ENEMIES      = 5
+MAX_NUM_BULLETS      = 3
 
-MAX_NUM_ENEMIES    = 5
-MAX_NUM_BULLETS    = 3
+GRAVITY              = 1
 
-GRAVITY            = 1
+PLAYER_SPEED         = $01
+PLAYER_JMP_VEL       = $04
+
+PLAYER_IS_JUMPING    = %00000001
+PLAYER_IS_FALLING    = %00000010
+PLAYER_IS_ON_GROUND  = %00000100

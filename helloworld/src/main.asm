@@ -28,10 +28,20 @@ JOYPAD2: .res 1
 
 PLAYER_X: .res 1        ; reserve 1 byte on zero page for player x pos
 PLAYER_Y: .res 1        ; reserve 1 byte on zero page for player y pos
-PLAYER_VEL_Y: .res 1
+PLAYER_VEL_Y: .res 2
 PLAYER_DIR: .res 1      ; reserve 1 byte on zero page for player direction
-PLAYER_ATTRS: .res 1    ; reserve 1 byte on zero page for player attributes
-.exportzp PLAYER_X, PLAYER_Y, PLAYER_VEL_Y, PLAYER_DIR, PLAYER_ATTRS
+PLAYER_SPRITE_ATTRS: .res 1    ; reserve 1 byte on zero page for player attributes
+
+; 76543210
+; |||||||^- 0   jumping
+; ||||||^-- 1   falling
+; |||||^--- 2   on ground
+; ||||^---- 3   
+; |||^----- 4   
+; |^^------ 5-6 dir (00: top, 01: left, 10: bottom, 11: right)
+; ^-------- 7   dead
+PLAYER_STATE: .res 1
+.exportzp PLAYER_X, PLAYER_Y, PLAYER_VEL_Y, PLAYER_DIR, PLAYER_SPRITE_ATTRS, PLAYER_STATE
 
 COLLISION_MAP: .res 30
 .exportzp COLLISION_MAP
@@ -176,18 +186,18 @@ MAINGAMELOOP:
   JSR update_player
   JSR draw_player
 
-  ; process enemies
-	JSR process_enemies
+;   ; process enemies
+; 	JSR process_enemies
 
-	; draw all enemies
-	LDA #$00
-	STA CURRENT_ENEMY
-DRAW_ENEMIES:
-	JSR draw_enemy
-	INC CURRENT_ENEMY
-	LDA CURRENT_ENEMY
-	CMP #MAX_NUM_ENEMIES
-	BNE DRAW_ENEMIES
+; 	; draw all enemies
+; 	LDA #$00
+; 	STA CURRENT_ENEMY
+; DRAW_ENEMIES:
+; 	JSR draw_enemy
+; 	INC CURRENT_ENEMY
+; 	LDA CURRENT_ENEMY
+; 	CMP #MAX_NUM_ENEMIES
+; 	BNE DRAW_ENEMIES
 
   ; scrolling
   LDA SCROLL

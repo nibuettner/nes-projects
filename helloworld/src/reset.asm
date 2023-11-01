@@ -1,7 +1,7 @@
 .include "inc/constants.inc"
 
 .segment "ZEROPAGE"
-.importzp PLAYER_X, PLAYER_Y, PLAYER_ATTRS
+.importzp PLAYER_X, PLAYER_Y, PLAYER_SPRITE_ATTRS
 
 .segment "CODE"
 .import main
@@ -88,7 +88,7 @@ VBLANKWAIT2:
   LDA #$A0
   STA PLAYER_Y
   LDA #%01000000
-  STA PLAYER_ATTRS
+  STA PLAYER_SPRITE_ATTRS
 
   LDA #$00
   LDX #$00
