@@ -183,7 +183,16 @@ MAINGAMELOOP:
   JSR read_input
 
   ; update tiles *after* DMA transfer
+  ; LDA #$00
+  ; LDX #$00
+  ; LDY #$00
+  ; CLC
   JSR update_player
+
+  ; LDA #$00
+  ; LDX #$00
+  ; LDY #$00
+  ; CLC
   JSR draw_player
 
 ;   ; process enemies

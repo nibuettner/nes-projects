@@ -68,26 +68,30 @@
 ; .endproc
 
 .proc check_input
-; CHECK_BTN_SELECT:
-;   LDA JOYPAD1
-;   AND #BTN_SELECT
-;   BEQ CHECK_BTN_START
-; CHECK_BTN_START:
-;   LDA JOYPAD1
-;   AND #BTN_START
-;   BEQ CHECK_LEFT
+CHECK_BTN_SELECT:
+  LDA JOYPAD1
+  AND #BTN_SELECT
+  BEQ CHECK_BTN_START
+  JMP DONE_CHECKING
+CHECK_BTN_START:
+  LDA JOYPAD1
+  AND #BTN_START
+  BEQ CHECK_LEFT
+  JMP DONE_CHECKING
 
 CHECK_LEFT:
   LDA JOYPAD1           ; load button presses
   AND #BTN_LEFT         ; filter out all but Left
-  BEQ CHECK_RIGHT       ; if result is zero, left not pressed
+  BEQ CHECK_RIGHT          ; if result is zero, left not pressed
+  ;BEQ DIRECTIONS_DONE          ; if result is zero, left not pressed
   ; DEC PLAYER_X          ; If the branch is not taken, move player left
-  SEC
   LDA PLAYER_X
+  SEC
   SBC #$01              ; TODO: Replace with speed variable
   STA PLAYER_X
   LDA #%01000000        ; mirror horizontally
   STA PLAYER_SPRITE_ATTRS
+  JMP CHECK_UP
 CHECK_RIGHT:
   LDA JOYPAD1
   AND #BTN_RIGHT
@@ -104,47 +108,47 @@ CHECK_UP:
   AND #BTN_UP
   BEQ CHECK_DOWN
   ;DEC PLAYER_Y
-  SEC
-  LDA PLAYER_Y
-  SBC #$01              ; TODO: Replace with speed variable
-  STA PLAYER_Y
+  ; SEC
+  ; LDA PLAYER_Y
+  ; SBC #$01              ; TODO: Replace with speed variable
+  ; STA PLAYER_Y
+  JMP DIRECTIONS_DONE
 CHECK_DOWN:
   LDA JOYPAD1
   AND #BTN_DOWN
   BEQ DIRECTIONS_DONE
   ;INC PLAYER_Y
-  CLC
-  LDA PLAYER_Y
-  ADC #$01              ; TODO: Replace with speed variable
-  STA PLAYER_Y
+  ; CLC
+  ; LDA PLAYER_Y
+  ; ADC #$01              ; TODO: Replace with speed variable
+  ; STA PLAYER_Y
 
 DIRECTIONS_DONE:
 
 CHECK_BTN_A:
   LDA JOYPAD1
   AND #BTN_A
-  BEQ STOP_JUMPING
+  BEQ SKIP_RESET_JUMP
 
 JUMP:
   LDA PLAYER_STATE
   ORA #PLAYER_IS_JUMPING        ; set jumping flag
-  ;AND #%11111101        ; reset falling flag
-  AND #!PLAYER_IS_FALLING        ; reset falling flag
-  ;AND #%11111011        ; reset on ground flag
-  AND #!PLAYER_IS_ON_GROUND        ; reset on ground flag
+  ; ;AND #%11111101        ; reset falling flag
+  ;AND #!PLAYER_IS_FALLING        ; reset falling flag
+  ; ;AND #%11111011        ; reset on ground flag
+  ;AND #!PLAYER_IS_ON_GROUND        ; reset on ground flag
   STA PLAYER_STATE
-  LDA #PLAYER_JMP_VEL
-  STA PLAYER_VEL_Y
-  JMP SKIP_RESET_JUMP
-
-STOP_JUMPING:
-  LDA PLAYER_STATE
-  AND #%11111110        ; reset jumping flag
-  STA PLAYER_STATE
-  ; LDA #$00
+  ; LDA #PLAYER_JMP_VEL
   ; STA PLAYER_VEL_Y
+  JMP SKIP_JUMPING
+
+; STOP_JUMPING:
+;   LDA PLAYER_STATE
+;   AND #!PLAYER_IS_JUMPING        ; reset jumping flag
+;   STA PLAYER_STATE
 
 SKIP_RESET_JUMP:
+SKIP_JUMPING:
 
   ; JSR jump
 CHECK_BTN_B:
@@ -160,57 +164,60 @@ DONE_CHECKING:
 .proc update_player
   JSR check_input
 
-  ; jumping
+  ; is player jumping?  Flag has been set in last frame
   LDA PLAYER_STATE
   AND #PLAYER_IS_JUMPING ; jump button is pressed
-  BNE UPDATE_PLAYER_Y_VEL ; jump button is pressed
-
-  ; jump button not pressed, gravity
+  BNE JUMP_PRESSED ; jump button is pressed
 
   LDA PLAYER_STATE
   AND #PLAYER_IS_ON_GROUND ; player is on ground
-  BNE NO_COLLISION_D
+  BNE ON_GROUND ; player is on ground
 
-; STOP_JUMPING:
-  LDA PLAYER_VEL_Y+1
-  ; STA PLAYER_VEL_Y+1
-  CLC
-  ADC #$50              ; accumulate up to 255
-  STA PLAYER_VEL_Y+1
-  BCC SKIP_DEC_PLAYER_VEL_Y ; skip if < 255
-
-  ; if carry set (PLAYER_VEL_Y+1 overflow), decrease Y velocity
-; DEC_PLAYER_VEL_Y:
-  DEC PLAYER_VEL_Y
-  ; LDA PLAYER_VEL_Y
-  ; SEC
-  ; CMP #$04
-  ; BCC SKIP_DEC_PLAYER_VEL_Y
-  ; LDA #$04
-  ; STA PLAYER_VEL_Y
-
-SKIP_DEC_PLAYER_VEL_Y:
-  LDA PLAYER_VEL_Y
-  BNE :+
-  ; if Y velocity is 0, switch to falling state
+IN_AIR: ; gravity
+  ; we're not jumping but we are in air
+  ; accumulate velocity change (sub pixel stuff)
   LDA PLAYER_STATE
   AND #!PLAYER_IS_JUMPING        ; reset jumping flag
+  AND #!PLAYER_IS_ON_GROUND        ; reset on ground flag
   ORA #PLAYER_IS_FALLING ; set falling flag
   STA PLAYER_STATE
-: ; still moving upwards
 
-UPDATE_PLAYER_Y_VEL:
-  LDA PLAYER_Y
-  SEC
-  SBC PLAYER_VEL_Y
-  STA PLAYER_Y
+  LDA PLAYER_VEL_Y+1    ; byte PLAYER_VEL_Y+1 holds accumulator
+  CLC
+  ADC #$50              ; accumulate up to 255 by adding #$50 each frame
+  STA PLAYER_VEL_Y+1    ; store accumulated value
+  BCC CHECK_COLLISION_D ; skip if < 255
 
-  ; LDA PLAYER_STATE
-  ; AND #PLAYER_IS_FALLING ; check falling flag
-  ; BEQ NO_COLLISION_D
+  ; if carry set (PLAYER_VEL_Y+1 overflow), decrease Y velocity
+  DEC PLAYER_VEL_Y
+  JMP CHECK_COLLISION_D
 
+JUMP_PRESSED:
+
+  ; LDA PLAYER_Y
+  ; SEC
+  ; SBC PLAYER_VEL_Y
+  ; STA PLAYER_Y
+  LDA #PLAYER_JMP_VEL
+  STA PLAYER_VEL_Y
+
+  LDA PLAYER_STATE
+  ; ORA #PLAYER_IS_JUMPING
+  AND #!PLAYER_IS_ON_GROUND
+  AND #!PLAYER_IS_FALLING
+  STA PLAYER_STATE
+  JMP SKIP_COLLISION_D
+
+; ON_GROUND:
+;   LDA PLAYER_STATE
+;   AND #!PLAYER_IS_JUMPING
+;   ORA #PLAYER_IS_ON_GROUND
+;   AND #!PLAYER_IS_FALLING
+;   STA PLAYER_STATE
+
+CHECK_COLLISION_D:
   JSR check_collision_d
-  BEQ NO_COLLISION_D
+  BEQ SKIP_COLLISION_D
 
   ; collision downwards
   ; reset position
@@ -219,13 +226,130 @@ UPDATE_PLAYER_Y_VEL:
   STA PLAYER_Y
   LDA #$00
   STA PLAYER_VEL_Y
+  
   LDA PLAYER_STATE
   AND #!PLAYER_IS_JUMPING ; reset jumping flag
   AND #!PLAYER_IS_FALLING ; reset falling flag
   ORA #PLAYER_IS_ON_GROUND ; set on ground flag
   STA PLAYER_STATE
+  JMP ON_GROUND
 
-NO_COLLISION_D:
+SKIP_COLLISION_D:
+  LDA PLAYER_Y
+  SEC
+  SBC PLAYER_VEL_Y
+  STA PLAYER_Y
+
+ON_GROUND:
+;   LDA PLAYER_STATE
+;   AND #!PLAYER_IS_JUMPING
+;   ORA #PLAYER_IS_ON_GROUND
+;   AND #!PLAYER_IS_FALLING
+;   STA PLAYER_STATE
+
+
+;   ; ; is player on ground? Flag has been set in last frame
+;   ; LDA PLAYER_STATE
+;   ; AND #PLAYER_IS_ON_GROUND ; player is on ground
+;   ; BNE CHECK_COLLISION_D
+
+
+
+
+
+
+
+
+
+
+
+
+; ; accumulate velocity change (sub pixel stuff)
+;   LDA PLAYER_VEL_Y+1    ; byte PLAYER_VEL_Y+1 holds accumulator
+;   ; STA PLAYER_VEL_Y+1
+;   CLC
+;   ADC #$50              ; accumulate up to 255 by adding #$50 each frame
+;   STA PLAYER_VEL_Y+1    ; store accumulated value
+;   BCC CHECK_FALLING     ; skip if < 255
+
+;   ; if carry set (PLAYER_VEL_Y+1 overflow), decrease Y velocity
+; ; DEC_PLAYER_VEL_Y:
+;   DEC PLAYER_VEL_Y
+;   ; LDA PLAYER_VEL_Y
+;   ; SEC
+;   ; CMP #$04
+;   ; BCC FALLING
+;   ; LDA #$04
+;   ; STA PLAYER_VEL_Y
+
+; CHECK_FALLING:
+;   LDA PLAYER_VEL_Y
+;   BNE :+                ; switch to falling if y velocity = 0
+;   ; if Y velocity is 0, switch to falling state
+;   LDA PLAYER_STATE
+;   AND #!PLAYER_IS_JUMPING        ; reset jumping flag
+;   ORA #PLAYER_IS_FALLING ; set falling flag
+;   STA PLAYER_STATE
+; : ; still moving upwards
+
+; JUMP_PRESSED:
+;   LDA PLAYER_Y
+;   SEC
+;   SBC PLAYER_VEL_Y
+;   STA PLAYER_Y
+;   ;JMP NO_COLLISION_D
+
+;   ; LDA PLAYER_STATE
+;   ; AND #PLAYER_IS_FALLING ; check falling flag
+;   ; BEQ NO_COLLISION_D
+
+; CHECK_COLLISION_D:
+;   JSR check_collision_d
+;   BEQ NO_COLLISION_D
+
+;   ; collision downwards
+;   ; reset position
+;   LDA PLAYER_Y
+;   AND #%11111000
+;   STA PLAYER_Y
+;   LDA #$00
+;   STA PLAYER_VEL_Y
+;   LDA PLAYER_STATE
+;   AND #!PLAYER_IS_JUMPING ; reset jumping flag
+;   AND #!PLAYER_IS_FALLING ; reset falling flag
+;   ORA #PLAYER_IS_ON_GROUND ; set on ground flag
+;   STA PLAYER_STATE
+
+; NO_COLLISION_D:
+
+; ;   ; is player on ground? Flag has been set in last frame
+; ;   LDA PLAYER_STATE
+; ;   AND #PLAYER_IS_ON_GROUND ; player is on ground
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   ; LDA PLAYER_STATE
   ; ORA #PLAYER_IS_FALLING ; set falling flag
   ; AND #%11111011        ; reset on ground flag
@@ -306,6 +430,13 @@ NO_COLLISION_D:
 ;   INC PLAYER_X
 ;   ; no need for JMP exit_subroutine
   
+  ; PLA
+  ; TAY
+  ; PLA
+  ; TAX
+  ; PLA
+  ; PLP
+
   RTS
 .endproc
 
@@ -313,6 +444,7 @@ NO_COLLISION_D:
   ; write player sprite
   ;.byte $70, $01, %00000000, $40
   LDA PLAYER_Y          ; load value of PLAYER_Y var from zero page into A
+  SEC
   SBC #$08
   STA $0200             ; store value in the first byte of the sprite which is pos Y
   LDA #$01              ; second sprite in tileset
@@ -320,6 +452,7 @@ NO_COLLISION_D:
   LDA PLAYER_SPRITE_ATTRS      ; sprite attributes (use palette 0)
   STA $0202             ; third byte is sprite attributes
   LDA PLAYER_X          ; load value of PLAYER_X var from zero page into A
+  SEC
   SBC #$04
   STA $0203             ; store value in the fourth byte of the sprite which is pos X
 
