@@ -128,7 +128,8 @@ DIRECTIONS_DONE:
 CHECK_BTN_A:
   LDA JOYPAD1
   AND #BTN_A
-  BEQ SKIP_RESET_JUMP
+  ; TODO: Don't STA PLAYER_STATE if I am not jumping anymore
+  BEQ STOP_JUMPING
 
 JUMP:
   LDA PLAYER_STATE
@@ -142,12 +143,12 @@ JUMP:
   ; STA PLAYER_VEL_Y
   JMP SKIP_JUMPING
 
-; STOP_JUMPING:
-;   LDA PLAYER_STATE
-;   AND #!PLAYER_IS_JUMPING        ; reset jumping flag
-;   STA PLAYER_STATE
+STOP_JUMPING:
+  LDA PLAYER_STATE
+  AND #!PLAYER_IS_JUMPING        ; reset jumping flag
+  ; TODO: Don't STA PLAYER_STATE if I am not jumping anymore
+  STA PLAYER_STATE
 
-SKIP_RESET_JUMP:
 SKIP_JUMPING:
 
   ; JSR jump
@@ -161,6 +162,10 @@ DONE_CHECKING:
   RTS
 .endproc
 
+; TODO: Check if these PLAYER_STATES are actually necessary:
+; PLAYER_IS_ON_GROUND
+; PLAYER_IS_FALLING
+
 .proc update_player
   JSR check_input
 
@@ -171,13 +176,12 @@ DONE_CHECKING:
 
   LDA PLAYER_STATE
   AND #PLAYER_IS_ON_GROUND ; player is on ground
-  BNE ON_GROUND ; player is on ground
+  BNE CHECK_COLLISION_D ; player is on ground
 
 IN_AIR: ; gravity
   ; we're not jumping but we are in air
   ; accumulate velocity change (sub pixel stuff)
   LDA PLAYER_STATE
-  AND #!PLAYER_IS_JUMPING        ; reset jumping flag
   AND #!PLAYER_IS_ON_GROUND        ; reset on ground flag
   ORA #PLAYER_IS_FALLING ; set falling flag
   STA PLAYER_STATE
@@ -186,38 +190,27 @@ IN_AIR: ; gravity
   CLC
   ADC #$50              ; accumulate up to 255 by adding #$50 each frame
   STA PLAYER_VEL_Y+1    ; store accumulated value
-  BCC CHECK_COLLISION_D ; skip if < 255
+  BCC APPLY_Y_VELOCITY ; skip if < 255
 
   ; if carry set (PLAYER_VEL_Y+1 overflow), decrease Y velocity
   DEC PLAYER_VEL_Y
-  JMP CHECK_COLLISION_D
+  JMP APPLY_Y_VELOCITY
 
 JUMP_PRESSED:
-
-  ; LDA PLAYER_Y
-  ; SEC
-  ; SBC PLAYER_VEL_Y
-  ; STA PLAYER_Y
   LDA #PLAYER_JMP_VEL
   STA PLAYER_VEL_Y
 
   LDA PLAYER_STATE
-  ; ORA #PLAYER_IS_JUMPING
   AND #!PLAYER_IS_ON_GROUND
   AND #!PLAYER_IS_FALLING
   STA PLAYER_STATE
-  JMP SKIP_COLLISION_D
 
-; ON_GROUND:
-;   LDA PLAYER_STATE
-;   AND #!PLAYER_IS_JUMPING
-;   ORA #PLAYER_IS_ON_GROUND
-;   AND #!PLAYER_IS_FALLING
-;   STA PLAYER_STATE
+  JMP APPLY_Y_VELOCITY
 
+; TODO: don't check when moving upwards
 CHECK_COLLISION_D:
   JSR check_collision_d
-  BEQ SKIP_COLLISION_D
+  BEQ NO_COLLISION_D
 
   ; collision downwards
   ; reset position
@@ -228,125 +221,27 @@ CHECK_COLLISION_D:
   STA PLAYER_VEL_Y
   
   LDA PLAYER_STATE
-  AND #!PLAYER_IS_JUMPING ; reset jumping flag
   AND #!PLAYER_IS_FALLING ; reset falling flag
   ORA #PLAYER_IS_ON_GROUND ; set on ground flag
   STA PLAYER_STATE
-  JMP ON_GROUND
+  JMP SKIP_COLLISION_D
 
-SKIP_COLLISION_D:
+NO_COLLISION_D:
+  LDA PLAYER_STATE
+  ORA #PLAYER_IS_FALLING ; reset falling flag
+  AND #!PLAYER_IS_ON_GROUND ; set on ground flag
+  STA PLAYER_STATE
+  JMP SKIP_COLLISION_D
+
+; apply before checking for collision
+APPLY_Y_VELOCITY: 
   LDA PLAYER_Y
   SEC
   SBC PLAYER_VEL_Y
   STA PLAYER_Y
+  JMP CHECK_COLLISION_D
 
-ON_GROUND:
-;   LDA PLAYER_STATE
-;   AND #!PLAYER_IS_JUMPING
-;   ORA #PLAYER_IS_ON_GROUND
-;   AND #!PLAYER_IS_FALLING
-;   STA PLAYER_STATE
-
-
-;   ; ; is player on ground? Flag has been set in last frame
-;   ; LDA PLAYER_STATE
-;   ; AND #PLAYER_IS_ON_GROUND ; player is on ground
-;   ; BNE CHECK_COLLISION_D
-
-
-
-
-
-
-
-
-
-
-
-
-; ; accumulate velocity change (sub pixel stuff)
-;   LDA PLAYER_VEL_Y+1    ; byte PLAYER_VEL_Y+1 holds accumulator
-;   ; STA PLAYER_VEL_Y+1
-;   CLC
-;   ADC #$50              ; accumulate up to 255 by adding #$50 each frame
-;   STA PLAYER_VEL_Y+1    ; store accumulated value
-;   BCC CHECK_FALLING     ; skip if < 255
-
-;   ; if carry set (PLAYER_VEL_Y+1 overflow), decrease Y velocity
-; ; DEC_PLAYER_VEL_Y:
-;   DEC PLAYER_VEL_Y
-;   ; LDA PLAYER_VEL_Y
-;   ; SEC
-;   ; CMP #$04
-;   ; BCC FALLING
-;   ; LDA #$04
-;   ; STA PLAYER_VEL_Y
-
-; CHECK_FALLING:
-;   LDA PLAYER_VEL_Y
-;   BNE :+                ; switch to falling if y velocity = 0
-;   ; if Y velocity is 0, switch to falling state
-;   LDA PLAYER_STATE
-;   AND #!PLAYER_IS_JUMPING        ; reset jumping flag
-;   ORA #PLAYER_IS_FALLING ; set falling flag
-;   STA PLAYER_STATE
-; : ; still moving upwards
-
-; JUMP_PRESSED:
-;   LDA PLAYER_Y
-;   SEC
-;   SBC PLAYER_VEL_Y
-;   STA PLAYER_Y
-;   ;JMP NO_COLLISION_D
-
-;   ; LDA PLAYER_STATE
-;   ; AND #PLAYER_IS_FALLING ; check falling flag
-;   ; BEQ NO_COLLISION_D
-
-; CHECK_COLLISION_D:
-;   JSR check_collision_d
-;   BEQ NO_COLLISION_D
-
-;   ; collision downwards
-;   ; reset position
-;   LDA PLAYER_Y
-;   AND #%11111000
-;   STA PLAYER_Y
-;   LDA #$00
-;   STA PLAYER_VEL_Y
-;   LDA PLAYER_STATE
-;   AND #!PLAYER_IS_JUMPING ; reset jumping flag
-;   AND #!PLAYER_IS_FALLING ; reset falling flag
-;   ORA #PLAYER_IS_ON_GROUND ; set on ground flag
-;   STA PLAYER_STATE
-
-; NO_COLLISION_D:
-
-; ;   ; is player on ground? Flag has been set in last frame
-; ;   LDA PLAYER_STATE
-; ;   AND #PLAYER_IS_ON_GROUND ; player is on ground
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+SKIP_COLLISION_D:
 
 
 
