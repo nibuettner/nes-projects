@@ -1,11 +1,12 @@
 .include "inc/constants.inc"
 
 .segment "ZEROPAGE"
-.importzp TMPLOBYTE, TMPHIBYTE
+.importzp TMP,TMPLOBYTE, TMPHIBYTE
 
 .segment "CODE"
 .export draw_background
 .export draw_text
+.export draw_numbers
 
 .proc draw_background
 ; TMPLOBYTE contains low byte of background nametable definition
@@ -42,14 +43,39 @@ LOAD_BACKGROUND:
   STY PPUADDR           ; write the low byte of $2000 address
 
   LDY #$00              ; start Y loop at 0
-  LOAD_TEXT:
+  TEXT_TO_PPU:
     LDA (TMPLOBYTE), Y
     BEQ EXIT
     CLC
     ADC #$99
     STA PPUDATA
     INY
-    BNE LOAD_TEXT
+    BNE TEXT_TO_PPU       ; just in case, only jump when Y did not overflow
+
+EXIT:
+  RTS
+.endproc
+
+.proc draw_numbers
+  LDA PPUSTATUS         ; read PPU status to reset the high/low latch
+  STX PPUADDR           ; write the high byte of $2000 address
+  STY PPUADDR           ; write the low byte of $2000 address
+
+  LDY #$00
+  LDA (TMPLOBYTE), Y    ; first byte is number of digits
+  TAX
+  INX                   ; need to increase as we want to start on next position
+  STX TMP
+  INY                   ; need to increase as we want to start on next position
+
+  NUMBERS_TO_PPU:
+    LDA (TMPLOBYTE), Y
+    CLC
+    ADC #$C9
+    STA PPUDATA
+    INY
+    CPY TMP
+    BNE NUMBERS_TO_PPU
 
 EXIT:
   RTS

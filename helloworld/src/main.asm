@@ -6,7 +6,7 @@
 .import draw_player
 .import draw_background
 .import reset_handler
-.import draw_text
+.import draw_text, draw_numbers
 .import read_input
 .import setup_enemies
 .import process_enemies
@@ -67,6 +67,12 @@ ENEMY_TIMER: .res 1
 BULLET_Xs: .res MAX_NUM_BULLETS
 BULLET_Ys: .res MAX_NUM_BULLETS
 
+TOPTEXT: .res 32
+.exportzp TOPTEXT
+
+TOPNUMBERS: .res 32
+.exportzp TOPNUMBERS
+
 ; --- VECTORS -----------------------------------------------------------------
 
 .segment "VECTORS" ; special addresses to handle important events
@@ -125,23 +131,40 @@ LOAD_PALETTES:
   JSR draw_background
 
 ; --- TEXT DISPLAY ------------------------------------------------------------
-  LDA #<HELLO           ; load low byte of HELLO's address
-  STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
-  LDA #>HELLO           ; load high byte of HELLO's address
-  STA TMPHIBYTE         ; store the address in TMPHIBYTE in the zero page
-  LDX #$20              ; draw_text expects X and Y to contain tile indexes
-  LDY #$D0              ; of where the text is to be displayed
+  ; LDA #<HI           ; load low byte of HELLO's address
+  ; STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
+  ; LDA #>HI           ; load high byte of HELLO's address
+  ; STA TMPHIBYTE         ; store the address in TMPHIBYTE in the zero page
+  ; LDX #$21              ; draw_text expects X and Y to contain tile indexes
+  ; LDY #$F0              ; of where the text is to be displayed
 
-  JSR draw_text
+  ; JSR draw_text
 
-  LDA #<HI           ; load low byte of HELLO's address
-  STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
-  LDA #>HI           ; load high byte of HELLO's address
-  STA TMPHIBYTE         ; store the address in TMPHIBYTE in the zero page
-  LDX #$21              ; draw_text expects X and Y to contain tile indexes
-  LDY #$F0              ; of where the text is to be displayed
+;   LDA #<TEST1
+;   STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
+;   LDA #>TEST1           ; load high byte of HELLO's address
+;   STA TMPHIBYTE         ; store the address in TMPHIBYTE in the zero page
 
-  JSR draw_text
+;   LDA 
+;   LDY #$00
+; LOADTEXT:
+;   LDA (TMPLOBYTE),Y
+;   BEQ EXIT_LOAD
+;   STA TOPTEXT,Y
+;   INY
+;   JMP LOADTEXT
+;   EXIT_LOAD:
+
+;   ; LDA #$FF
+;   ; STA TOPTEXT
+
+
+;   LDA #<TOPTEXT         ; load low byte of TOPTEXT's address
+;   STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
+;   LDA #>TOPTEXT         ; load high byte of TOPTEXT's address
+;   STA TMPHIBYTE         ; store the address in TMPHIBYTE in the zero page
+;   LDX #$20              ; draw_text expects X and Y to contain tile indexes
+;   LDY #$02              ; of where the text is to be displayed
 
 ; --- PLAYER SPRITES (just for testing) -----------------------------------------
 ;   LDX #$04              ; loop index, skip first sprite as it is handled by draw_player
@@ -240,11 +263,49 @@ SLEEP:
   TYA
   PHA
 
+; --- DISPLAY TOP NUMBERS -----------------------------------------------------
+  LDA #<TOPNUMBERS         ; load low byte of TOPTEXT's address
+  STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
+  LDA #>TOPNUMBERS         ; load high byte of TOPTEXT's address
+  STA TMPHIBYTE         ; store the address in TMPLOBYTE in the zero page
+
+  LDY #$00
+  LDA #32                ; first byte is number of digits
+  STA (TMPLOBYTE),Y
+
+  LDX #$20              ; draw_numbers expects X and Y to contain tile indexes
+  LDY #$00              ; of where the text is to be displayed
+                        ; $2000 is top left corner
+
+  JSR draw_numbers
+
+; --- DISPLAY TOP TEXT --------------------------------------------------------
+  LDA #<TOPTEXT         ; load low byte of TOPTEXT's address
+  STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
+  LDA #>TOPTEXT         ; load high byte of TOPTEXT's address
+
+  LDX #$20              ; draw_numbers expects X and Y to contain tile indexes
+  LDY #$20              ; of where the text is to be displayed
+                        ; $2000 is top left corner
+
+  JSR draw_text
+
+; --- DISPLAY TEXT ------------------------------------------------------------
+  LDA #<HELLO           ; load low byte of HELLO's address
+  STA TMPLOBYTE         ; store the address in TMPLOBYTE in the zero page
+  LDA #>HELLO           ; load high byte of HELLO's address
+  STA TMPHIBYTE         ; store the address in TMPHIBYTE in the zero page
+  LDX #$20              ; draw_text expects X and Y to contain tile indexes
+  LDY #$D0              ; of where the text is to be displayed
+
+  JSR draw_text
+
   LDA #$00              ; load literal value #$00 into accumulator
   STA OAMADDR           ; prepare OAM; we want to write sprite data to beginning of OAM
   LDA #$02              ; load high byte #$02 into acc
   STA OAMDMA            ; write high byte #$02 into OAMDMA; tells the PPU to initiate a high-speed transfer of the 256 bytes from $0200-$02ff into OAM
 
+; --- PPU STUFF ---------------------------------------------------------------
   ; load PPUCTRL_SETTINGS (which we might have changed in our main loop) and update PPUCTRL
   LDA PPUCTRL_SETTINGS
   STA PPUCTRL
@@ -302,6 +363,12 @@ HELLO:
 
 HI:
   .byte "HI THERE",0
+
+TEST:
+  .byte $01,$02,$03,$04,$05,$06,$7,$08,$09,$0A,0
+
+TEST1:
+  .byte "I LOVE THIS",0
 
 ; --- GRAPHICS ----------------------------------------------------------------
 ; graphical data
