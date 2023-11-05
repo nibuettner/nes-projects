@@ -28,6 +28,7 @@ JOYPAD2: .res 1
 
 PLAYER_X: .res 1        ; reserve 1 byte on zero page for player x pos
 PLAYER_Y: .res 1        ; reserve 1 byte on zero page for player y pos
+PLAYER_VEL_X: .res 2
 PLAYER_VEL_Y: .res 2
 PLAYER_DIR: .res 1      ; reserve 1 byte on zero page for player direction
 PLAYER_SPRITE_ATTRS: .res 1    ; reserve 1 byte on zero page for player attributes
@@ -36,9 +37,10 @@ PLAYER_SPRITE_ATTRS: .res 1    ; reserve 1 byte on zero page for player attribut
 ; |||||||^- 0   jumping
 ; ||||||^-- 1   falling
 ; |||||^--- 2   on ground
-; ||||^---- 3   
-; |||^----- 4   
-; |^^------ 5-6 dir (00: top, 01: left, 10: bottom, 11: right)
+; ||||^---- 3   x dir   
+; |||^----- 4   y dir
+; ||^------ 5
+; |^------- 6
 ; ^-------- 7   dead
 PLAYER_STATE: .res 1
 .exportzp PLAYER_X, PLAYER_Y, PLAYER_VEL_Y, PLAYER_DIR, PLAYER_SPRITE_ATTRS, PLAYER_STATE

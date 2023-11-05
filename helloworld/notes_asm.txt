@@ -55,8 +55,6 @@ OpCodes
   SEI                    ; set interrupt ignore bit - after calling this, interrupts are ignored
   CLD                    ; clear decimal mode bit - disable "binary-coded decimal" mode - actually not used on the NES but still
                          ; called in reset handler "just in case"
-  BIT                    ; 
-  BPL                    ; 
 
   CLC                    ; clear carry bit in processor status register (0) -> do when adding
   SEC                    ; set carry bit in processor status register (1) -> do when subtracting
@@ -66,11 +64,14 @@ OpCodes
   AND <value>            ; bitwise AND: accumulator AND value - stored in A
   ORA <value>            ; bitwise OR: accumulator OR value - stored in A
   EOR <value>            ; bitwise XOR: accumulator XOR value (true, if either of the inputs are true but NOT BOTH) - stored in A
+  BIT                    ; 
 
   BEQ <label>            ; branch if equal to zero
   BNE <label>            ; branch if not equal to zero
   BCS <label>            ; branch if carry set
   BCC <label>            ; branch if carry cleared
+  BPL                    ; 
+  BMI                    ; 
 
   CMP <value>            ; compare accumulator with value (A - value)
   CPX <value>            ; compare X register with value (X - value)
