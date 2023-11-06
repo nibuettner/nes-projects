@@ -28,7 +28,7 @@ MAX_NUM_BULLETS      = 3
 
 GRAVITY              = $50
 
-PLAYER_WALK_SPEED    = $02
+PLAYER_WALK_SPEED    = $01
 PLAYER_ACCEL         = $50
 PLAYER_JMP_VEL       = $04
 

@@ -12,6 +12,42 @@
 .export update_player
 .export draw_player
 
+.proc check_collision_l
+  LDA PLAYER_X
+  SEC
+  SBC #$03
+  TAX
+  LDY PLAYER_Y
+  DEY
+  ; DEY
+  ; LDA PLAYER_Y
+  ; SEC
+  ; SBC #$03
+  ; TAY
+
+  JSR check_collision
+
+  RTS
+.endproc
+
+.proc check_collision_r
+  LDA PLAYER_X
+  CLC
+  ADC #$04
+  TAX
+  LDY PLAYER_Y
+  DEY
+  ; DEY
+  ; LDA PLAYER_Y
+  ; SEC
+  ; SBC #$03
+  ; TAY
+
+  JSR check_collision
+
+  RTS
+.endproc
+
 .proc check_collision_d
   LDX PLAYER_X
   LDY PLAYER_Y
@@ -25,13 +61,27 @@
   LDX PLAYER_X
   LDA PLAYER_Y
   SEC
-  SBC #$08
+  SBC #$06                        ; allow for a 2 pixel leeway (8 - 2)
   ; STA PLAYER_Y
   TAY
-  
 
   JSR check_collision
 
+  ; check if tile above collision tile is solid
+  ; if no, we want to pass through, so we only collide
+  ; if there are two solid tiles above the player
+  BEQ SKIP                        ; we don't collide in the first place, so skip this
+
+  LDX PLAYER_X
+  LDA PLAYER_Y
+  SEC
+  SBC #$10
+  ; STA PLAYER_Y
+  TAY
+
+  JSR check_collision
+
+SKIP:
   RTS
 .endproc
 
@@ -113,7 +163,6 @@ CHECK_LEFT:
 
   LDA #%01000000                  ; mirror horizontally
   STA PLAYER_SPRITE_ATTRS
-
   JMP CHECK_UP
 
 CHECK_RIGHT:
@@ -247,6 +296,26 @@ MOVE_R:
   CLC
   ADC #PLAYER_WALK_SPEED
   STA PLAYER_X
+
+CHECK_COLLISION_R:
+  JSR check_collision_r
+  BEQ CHECK_JUMPING
+
+  LDY #$03
+  LDA #'R'
+  STA TOPTEXT,Y
+
+  ; collision right
+  ; reset position
+  LDA PLAYER_X
+  CLC
+  ADC #$04
+
+  AND #%11111000                  ; find position below collided tile
+  SEC
+  SBC #$04                        ; pivot is bottom middle
+  STA PLAYER_X
+
   JMP CHECK_JUMPING
 
 MOVE_L:
@@ -254,6 +323,27 @@ MOVE_L:
   SEC
   SBC #PLAYER_WALK_SPEED
   STA PLAYER_X
+
+CHECK_COLLISION_L:
+  JSR check_collision_l
+  BEQ CHECK_JUMPING
+
+  LDY #$03
+  LDA #'L'
+  STA TOPTEXT,Y
+
+  ; collision left
+  ; reset position
+  LDA PLAYER_X
+  SEC
+  SBC #$03                        ; pivot is bottom middle
+
+  AND #%11111000                  ; find position
+  CLC
+  ADC #$0B                        ; pivot is bottom middle (add 3) but also, we found the tile to the left
+                                  ; of the collision, so we need to add 8 more to compensate
+  STA PLAYER_X
+
   JMP CHECK_JUMPING
 
 CHECK_JUMPING:
@@ -274,22 +364,34 @@ IN_AIR: ; gravity
 
   ; we're not jumping but we are in air
   ; accumulate velocity change (sub pixel stuff)
-  LDA PLAYER_STATE
-  ; AND #!PLAYER_IS_ON_GROUND     ; reset on ground flag
-  AND #%11110111                  ; reset on ground flag
-  ORA #PLAYER_IS_FALLING          ; set falling flag
-  STA PLAYER_STATE
+
+  ; LDA PLAYER_STATE
+  ; AND #%11110111                  ; reset on ground flag
+  ; ; ORA #PLAYER_IS_FALLING          ; set falling flag
+  ; STA PLAYER_STATE
 
   LDA PLAYER_VEL_Y+1              ; byte PLAYER_VEL_Y+1 holds accumulator
   CLC
   ADC #GRAVITY                    ; accumulate up to 255 by adding #$50 each frame
   STA PLAYER_VEL_Y+1              ; store accumulated value
   ;BCC APPLY_Y_VELOCITY ; skip if < 255
+
   BCS :+                          ; skip if < 255
   JMP APPLY_Y_VELOCITY
 :
   ; if carry set (PLAYER_VEL_Y+1 overflow), decrease Y velocity
   DEC PLAYER_VEL_Y
+  ; LDY PLAYER_VEL_Y
+  ; DEY
+  ; STY PLAYER_VEL_Y
+
+;   BPL :+
+;   JMP APPLY_Y_VELOCITY
+; :
+;   LDA PLAYER_STATE
+;   ORA #PLAYER_IS_FALLING          ; set falling flag
+;   STA PLAYER_STATE
+
   JMP APPLY_Y_VELOCITY
 
 JUMP_PRESSED:
@@ -306,7 +408,7 @@ JUMP_PRESSED:
 
   LDA PLAYER_STATE
   AND #%11110011                  ; reset on ground and falling
-  AND #%11111101                  ; reset jumping flag
+  AND #%11111101                  ; reset jumping flag, it was set by the check_input routine before
   STA PLAYER_STATE
 
   JMP APPLY_Y_VELOCITY
@@ -327,12 +429,20 @@ CHECK_COLLISION_U:
   ; reset position
   LDA PLAYER_Y
   CLC
-  ADC #$08
+  ADC #$06                        ; allow for a 2 pixel leeway (8 - 2)
 
   AND #%11111000                  ; find position below collided tile
+  SEC
+  SBC #$02                        ; allow for a 2 pixel leeway (move 2px up)
   STA PLAYER_Y
   LDA #$00
   STA PLAYER_VEL_Y
+
+  LDA PLAYER_STATE
+  ORA #PLAYER_IS_FALLING
+  STA PLAYER_STATE
+
+  JMP SKIP_COLLISION_D
 
 ; TODO: don't check when moving upwards
 CHECK_COLLISION_D:
@@ -343,6 +453,17 @@ CHECK_COLLISION_D:
   AND #PLAYER_IS_ON_GROUND
   ; we're already on ground, so no need to update player y position again
   BNE SKIP_COLLISION_D
+
+  ; check for falling flag and skip if we are not falling
+  ; falling is only set, when there is no downward collision
+  ; if we jump into a block from below (which we can only do if there is only
+  ; one row of blocking blocks) there will be downward collision so the falling
+  ; flag will not be set
+  ; this allows us to pass through blocking blocks that are only 1 block high
+  LDA PLAYER_STATE
+  AND #PLAYER_IS_FALLING
+  ; we're already on ground, so no need to update player y position again
+  BEQ SKIP_COLLISION_D
 
   ; #DEBUG
   LDY #$01
@@ -376,8 +497,8 @@ NO_COLLISION_D:
   STA TOPTEXT,Y
 
   LDA PLAYER_STATE
-  ; ORA #PLAYER_IS_FALLING ; set falling flag
-  AND #%11110111                  ; reset on ground flag
+  ORA #PLAYER_IS_FALLING          ; set falling flag only when there is no collision downwards
+  AND #%11110111                  ; reset on ground flag as we're not on ground
   STA PLAYER_STATE
   JMP SKIP_COLLISION_D
 
@@ -388,8 +509,8 @@ APPLY_Y_VELOCITY:
   SBC PLAYER_VEL_Y
   STA PLAYER_Y
   LDA PLAYER_VEL_Y
-  BPL CHECK_COLLISION_U
-  JMP CHECK_COLLISION_D
+  BPL CHECK_COLLISION_U           ; we're moving upwards
+  JMP CHECK_COLLISION_D           ; we're moving downwards
 
 SKIP_COLLISION_D:
 
@@ -452,7 +573,7 @@ SKIP_COLLISION_D:
   STA $0202                       ; third byte is sprite attributes
   LDA PLAYER_X                    ; load value of PLAYER_X var from zero page into A
   SEC
-  SBC #$04                        ; move sprite to the left 1/2 of a tile
+  SBC #$03                        ; move sprite to the left 1/2 of a tile
   STA $0203                       ; store value in the fourth byte of the sprite which is pos X
   ; X:Y position of the sprite is selected so that the actual player position is
   ; in the middle of the bottom edge of the sprite
