@@ -385,13 +385,6 @@ IN_AIR: ; gravity
   ; DEY
   ; STY PLAYER_VEL_Y
 
-;   BPL :+
-;   JMP APPLY_Y_VELOCITY
-; :
-;   LDA PLAYER_STATE
-;   ORA #PLAYER_IS_FALLING          ; set falling flag
-;   STA PLAYER_STATE
-
   JMP APPLY_Y_VELOCITY
 
 JUMP_PRESSED:
