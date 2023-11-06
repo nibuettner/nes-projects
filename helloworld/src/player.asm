@@ -242,9 +242,11 @@ DONE_CHECKING:
   RTS
 .endproc
 
-; TODO: Check if these PLAYER_STATES are actually necessary:
-; PLAYER_IS_ON_GROUND
-; PLAYER_IS_FALLING
+; TODO: player is transported upwards if at highest point of jump he collides with a
+;       block and there is a blocking block above a one block gap
+; TODO: when passing through blocking blocks from below, collision left and right should
+;       not occur
+; TODO: jumping in mid-air if falling off a ledge should not be possible
 
 .proc update_player
 
