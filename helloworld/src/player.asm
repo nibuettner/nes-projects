@@ -104,9 +104,10 @@ SKIP:
   LSR
   LSR
   LSR                             ; Y / 8
-  PHA                             ; push A on stack (= Y tile index)
-  ADC TMP                         ; tile index stored in A
   TAY
+  ; PHA                             ; push A on stack (= Y tile index)
+  ADC TMP                         ; tile index stored in A
+  ; TAY
 
 ; ; COLL_EMPTY_TILE_IDX     = $00 ; to $1F
 ; ; COLL_SOLID_TILE_IDX     = $20 ; to $3F
@@ -139,8 +140,8 @@ SKIP:
   ; LSR                             ; X / 64
   STA TMP
 
-  PLA                             ; get Y tile index from stack
-  ; TYA                             ; PLAYER_Y to A: (Y / 8) * 4
+  ; PLA                             ; get Y tile index from stack
+  TYA                             ; PLAYER_Y to A: (Y / 8) * 4
   ; LSR
   ; LSR
   ; LSR                             ; Y / 8 -> already done before
@@ -160,22 +161,7 @@ SKIP:
   TAX                             ; bitmask index
 
   LDA BG1_COLLISION, Y
-  AND BG1_BITMASK, X
-
-
-
-;   DEX
-;   BCS SKIP
-; LOOP:
-;   LSR
-;   DEX
-;   BCC LOOP
-; SKIP:
-
-  ; A contains collision type now
-  ; COLL_EMPTY              = $00
-  ; COLL_SOLID              = $01
-  ; COLL_PLATFORM           = $10
+  AND BG_COLL_BITMASK, X
 
   RTS
 .endproc
@@ -301,10 +287,6 @@ DONE_CHECKING:
   RTS
 .endproc
 
-; TODO: player is transported upwards if at highest point of jump he collides with a
-;       block and there is a blocking block above a one block gap
-; TODO: when passing through blocking blocks from below, collision left and right should
-;       not occur
 ; TODO: jumping in mid-air if falling off a ledge should not be possible
 
 .proc update_player
@@ -362,6 +344,11 @@ CHECK_COLLISION_R:
   JSR check_collision_r
   BEQ CHECK_JUMPING
 
+  ;AND #%11111111                 ; TODO: need to check this first
+
+  AND #%10101010                  ; platform collision: pass through
+  BNE CHECK_JUMPING
+
   LDY #$03
   LDA #'R'
   STA TOPTEXT,Y
@@ -388,6 +375,11 @@ MOVE_L:
 CHECK_COLLISION_L:
   JSR check_collision_l
   BEQ CHECK_JUMPING
+
+  ;AND #%11111111                 ; TODO: need to check this first
+
+  AND #%10101010                  ; platform collision: pass through
+  BNE CHECK_JUMPING
 
   LDY #$03
   LDA #'L'
