@@ -108,22 +108,22 @@ SKIP:
   ADC TMP                         ; tile index stored in A
   TAY
 
-; COLL_EMPTY_TILE_IDX     = $00 ; to $1F
-; COLL_SOLID_TILE_IDX     = $20 ; to $3F
-; COLL_PLATFORM_TILE_IDX  = $40 ; to $5F
+; ; COLL_EMPTY_TILE_IDX     = $00 ; to $1F
+; ; COLL_SOLID_TILE_IDX     = $20 ; to $3F
+; ; COLL_PLATFORM_TILE_IDX  = $40 ; to $5F
 
-  LDA BACKGROUND1, Y              ; get tile from background
-  CMP #COLL_SOLID_TILE_IDX
-  BCC EMPTY
+;   LDA BACKGROUND1, Y              ; get tile from background
+;   CMP #COLL_SOLID_TILE_IDX
+;   BCC EMPTY
 
-  CMP #COLL_PLATFORM_TILE_IDX
-  BCC SOLID
+;   CMP #COLL_PLATFORM_TILE_IDX
+;   BCC SOLID
 
-PLATFORM:
+; PLATFORM:
 
-EMPTY:
+; EMPTY:
 
-SOLID:
+; SOLID:
 
 ; X / 64 + (Y/8) * 4
 ; (X / (64 * 4)) + Y / 8) * 4
@@ -161,6 +161,16 @@ SOLID:
 
   LDA BG1_COLLISION, Y
   AND BG1_BITMASK, X
+
+
+
+;   DEX
+;   BCS SKIP
+; LOOP:
+;   LSR
+;   DEX
+;   BCC LOOP
+; SKIP:
 
   ; A contains collision type now
   ; COLL_EMPTY              = $00
@@ -460,14 +470,15 @@ JUMP_PRESSED:
 CHECK_COLLISION_U:
   JSR check_collision_u
   BNE :+
+  JMP SKIP_COLLISION_D            ; no collision, skip
+: ; collision is not 0, continue
+
+  ;AND #%11111111                 ; TODO: need to check this first
+
+  AND #%10101010                  ; platform collision: pass through
+  BEQ :+
   JMP SKIP_COLLISION_D
 :
-
-  AND #COLL_PLATFORM
-  BNE :+
-  JMP SKIP_COLLISION_D
-:
-
   LDY #$01
   LDA #' '
   STA TOPTEXT,Y
