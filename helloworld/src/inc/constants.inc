@@ -41,3 +41,13 @@ PLAYER_STOP          = %00000000
 PLAYER_MOVE_R        = %00010000
 PLAYER_MOVE_L        = %00100000
 PLAYER_DIR_Y_U       = %00000000
+
+; -----------------------------------------------------------------------------
+
+COLL_EMPTY_TILE_IDX     = $00 ; to $1F
+COLL_SOLID_TILE_IDX     = $20 ; to $3F
+COLL_PLATFORM_TILE_IDX  = $40 ; to $5F
+
+COLL_EMPTY              = $00
+COLL_SOLID              = $01
+COLL_PLATFORM           = $10

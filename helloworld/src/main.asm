@@ -45,8 +45,8 @@ PLAYER_SPRITE_ATTRS: .res 1    ; reserve 1 byte on zero page for player attribut
 PLAYER_STATE: .res 1
 .exportzp PLAYER_X, PLAYER_Y, PLAYER_VEL_Y, PLAYER_DIR, PLAYER_SPRITE_ATTRS, PLAYER_STATE
 
-COLLISION_MAP: .res 30
-.exportzp COLLISION_MAP
+; COLLISION_MAP: .res 30
+; .exportzp COLLISION_MAP
 
 SCROLL: .res 1          ; scroll position
 PPUCTRL_SETTINGS: .res 1
@@ -186,11 +186,11 @@ LOAD_PALETTES:
   LDA #>BG1_COLLISION   ; load high byte of BACKGROUND's address
   STA TMPHIBYTE         ; store the address in TMPHIBYTE in the zero page
 
-LOAD_COLLISION_MAP:
-  LDA (TMPLOBYTE),Y     ; load a 16 bit address from TMPLOBYTE (starting with low byte) + Y, so we get the
-                        ; 16 bit address of the current BACKGROUND tile in the loop
-  STA COLLISION_MAP,Y
-  BNE LOAD_COLLISION_MAP
+; LOAD_COLLISION_MAP:
+;   LDA (TMPLOBYTE),Y     ; load a 16 bit address from TMPLOBYTE (starting with low byte) + Y, so we get the
+;                         ; 16 bit address of the current BACKGROUND tile in the loop
+;   STA COLLISION_MAP,Y
+;   BNE LOAD_COLLISION_MAP
 
 VBLANKWAIT:             ; wait for another vblank before continuing
   BIT PPUSTATUS

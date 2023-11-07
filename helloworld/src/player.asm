@@ -67,56 +67,105 @@
 
   JSR check_collision
 
-  ; check if tile above collision tile is solid
-  ; if no, we want to pass through, so we only collide
-  ; if there are two solid tiles above the player
-  BEQ SKIP                        ; we don't collide in the first place, so skip this
+  ; ; check if tile above collision tile is solid
+  ; ; if no, we want to pass through, so we only collide
+  ; ; if there are two solid tiles above the player
+  ; BEQ SKIP                        ; we don't collide in the first place, so skip this
 
-  LDX PLAYER_X
-  LDA PLAYER_Y
-  SEC
-  SBC #$10
-  ; STA PLAYER_Y
-  TAY
+  ; LDX PLAYER_X
+  ; LDA PLAYER_Y
+  ; SEC
+  ; SBC #$10
+  ; ; STA PLAYER_Y
+  ; TAY
 
-  JSR check_collision
+  ; JSR check_collision
 
 SKIP:
   RTS
 .endproc
 
 .proc check_collision
-; X / 64 + (Y/8) * 4
-; X / 8 AND %00000111
-  ; collision
+; PLAYER_X in X register
+; PLAYER_Y in Y register
 
-  TXA                             ; X / 64
-  LSR
-  LSR
-  LSR
-  LSR
-  LSR
-  LSR
-  STA TMP
-  TYA                             ; (Y / 8) * 4
-  LSR
-  LSR
-  LSR
-  ASL
-  ASL
-  CLC
-  ADC TMP
-  TAY                             ; player's byte index
+; X / 8: X tile index
+; Y / 8: Y tile index
+; X / 8 + Y / 8: which tile am I in
 
   TXA
   LSR
   LSR
+  LSR                             ; X / 8
+  TAX
+  STA TMP
+
+  TYA
   LSR
-  AND #%00000111
+  LSR
+  LSR                             ; Y / 8
+  PHA                             ; push A on stack (= Y tile index)
+  ADC TMP                         ; tile index stored in A
+  TAY
+
+; COLL_EMPTY_TILE_IDX     = $00 ; to $1F
+; COLL_SOLID_TILE_IDX     = $20 ; to $3F
+; COLL_PLATFORM_TILE_IDX  = $40 ; to $5F
+
+  LDA BACKGROUND1, Y              ; get tile from background
+  CMP #COLL_SOLID_TILE_IDX
+  BCC EMPTY
+
+  CMP #COLL_PLATFORM_TILE_IDX
+  BCC SOLID
+
+PLATFORM:
+
+EMPTY:
+
+SOLID:
+
+; X / 64 + (Y/8) * 4
+; (X / (64 * 4)) + Y / 8) * 4
+; 
+; X / 8 AND %00000111
+
+  TXA                             ; PLAYER_X to A: X / 64
+  ; LSR
+  ; LSR
+  ; LSR                             ; X / 8 -> already done before
+  LSR
+  LSR
+  ; LSR                             ; X / 64
+  STA TMP
+
+  PLA                             ; get Y tile index from stack
+  ; TYA                             ; PLAYER_Y to A: (Y / 8) * 4
+  ; LSR
+  ; LSR
+  ; LSR                             ; Y / 8 -> already done before
+  ASL
+  ASL                             ; Y * 4
+  ASL
+  CLC
+  ADC TMP
+  TAY                             ; player's byte index to Y
+
+  TXA
+  ; LSR
+  ; LSR                             ; X / 4: X byte index
+  ; LSR                             ; X / 8: X byte index
+  ; AND #%00000111
+  AND #%00000011
   TAX                             ; bitmask index
 
   LDA BG1_COLLISION, Y
   AND BG1_BITMASK, X
+
+  ; A contains collision type now
+  ; COLL_EMPTY              = $00
+  ; COLL_SOLID              = $01
+  ; COLL_PLATFORM           = $10
 
   RTS
 .endproc
@@ -410,7 +459,14 @@ JUMP_PRESSED:
 
 CHECK_COLLISION_U:
   JSR check_collision_u
-  BEQ SKIP_COLLISION_D
+  BNE :+
+  JMP SKIP_COLLISION_D
+:
+
+  AND #COLL_PLATFORM
+  BNE :+
+  JMP SKIP_COLLISION_D
+:
 
   LDY #$01
   LDA #' '
@@ -504,7 +560,9 @@ APPLY_Y_VELOCITY:
   SBC PLAYER_VEL_Y
   STA PLAYER_Y
   LDA PLAYER_VEL_Y
-  BPL CHECK_COLLISION_U           ; we're moving upwards
+  BMI :+
+  JMP CHECK_COLLISION_U           ; we're moving upwards
+:
   JMP CHECK_COLLISION_D           ; we're moving downwards
 
 SKIP_COLLISION_D:
