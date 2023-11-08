@@ -30,7 +30,8 @@ GRAVITY              = $50
 
 PLAYER_WALK_SPEED    = $01
 PLAYER_ACCEL         = $50
-PLAYER_JMP_VEL       = $03
+PLAYER_JMP_VEL       = $04
+PLAYER_WALL_SPEED    = $02
 
 PLAYER_CAN_JUMP      = %00000001
 PLAYER_IS_JUMPING    = %00000010
@@ -40,7 +41,9 @@ PLAYER_IS_ON_GROUND  = %00001000
 PLAYER_STOP          = %00000000
 PLAYER_MOVE_R        = %00010000
 PLAYER_MOVE_L        = %00100000
-PLAYER_DIR_Y_U       = %00000000
+; PLAYER_DIR_Y_U       = %00000000
+
+PLAYER_IS_ON_WALL    = %01000000
 
 ; -----------------------------------------------------------------------------
 

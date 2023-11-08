@@ -12,6 +12,40 @@
 .export update_player
 .export draw_player
 
+.proc reset_debug_text
+  ; #DEBUG
+  LDY #$00
+  LDA #' '
+  STA TOPTEXT,Y
+
+  LDY #$01
+  LDA #' '
+  STA TOPTEXT,Y
+
+  LDY #$02
+  LDA #' '
+  STA TOPTEXT,Y
+
+  LDY #$03
+  LDA #' '
+  STA TOPTEXT,Y
+
+  LDY #$04
+  LDA #' '
+  STA TOPTEXT,Y
+
+  LDY #$05
+  LDA #' '
+  STA TOPTEXT,Y
+
+  LDY #$06
+  LDA #' '
+  STA TOPTEXT,Y
+  ; /#DEBUG
+
+  RTS
+.endproc
+
 .proc check_collision_l
   LDA PLAYER_X
   SEC
@@ -268,7 +302,8 @@ STOP_JUMPING:
   LDA PLAYER_STATE
   ; TODO: Don't STA PLAYER_STATE if I am not jumping anymore
   ; STA PLAYER_STATE
-  AND #PLAYER_IS_ON_GROUND        ; is player on ground?
+  ; AND #PLAYER_IS_ON_GROUND        ; is player on ground?
+  AND #%01001000        ; is player on ground or on wall?
   BEQ SKIP_JUMPING
 
   LDA PLAYER_STATE
@@ -288,40 +323,21 @@ DONE_CHECKING:
 .endproc
 
 ; TODO: jumping in mid-air if falling off a ledge should not be possible
+; TODO: acceleration/deceleration when moving left/right
+; TODO: when falling off a ledge, give some frames of leeway until resetting the PLAYER_CAN_JUMP flag
+; TODO: wall jumping:
+;       jump away from the wall when wall jumping
+;       wall grab after a short delay when pressing jump button
+; TODO: we want to slowly increase the speed at which we slide off the wall
 
 .proc update_player
-
-  ; #DEBUG
-  LDY #$00
-  LDA #' '
-  STA TOPTEXT,Y
-
-  LDY #$01
-  LDA #' '
-  STA TOPTEXT,Y
-
-  LDY #$02
-  LDA #' '
-  STA TOPTEXT,Y
-
-  LDY #$03
-  LDA #' '
-  STA TOPTEXT,Y
-
-  LDY #$04
-  LDA #' '
-  STA TOPTEXT,Y
-
-  LDY #$05
-  LDA #' '
-  STA TOPTEXT,Y
-
-  LDY #$06
-  LDA #' '
-  STA TOPTEXT,Y
-  ; /#DEBUG
+  JSR reset_debug_text
 
   JSR check_input
+
+  LDA PLAYER_STATE
+  AND #%10111111          ; reset on wall flag
+  STA PLAYER_STATE
 
   LDA PLAYER_STATE
   AND #PLAYER_MOVE_R
@@ -342,7 +358,7 @@ MOVE_R:
 
 CHECK_COLLISION_R:
   JSR check_collision_r
-  BEQ CHECK_JUMPING
+  BEQ CHECK_JUMPING               ; no collision, skip ahead
 
   ;AND #%11111111                 ; TODO: need to check this first
 
@@ -353,18 +369,32 @@ CHECK_COLLISION_R:
   LDA #'R'
   STA TOPTEXT,Y
 
-  ; collision right
-  ; reset position
+  ; collision right, reset position
   LDA PLAYER_X
   CLC
   ADC #$04
 
-  AND #%11111000                  ; find position below collided tile
+  AND #%11111000                  ; find position to the left of collided tile
   SEC
   SBC #$04                        ; pivot is bottom middle
   STA PLAYER_X
 
-  JMP CHECK_JUMPING
+  LDA PLAYER_STATE
+  ; ; AND #PLAYER_IS_FALLING
+  AND #PLAYER_IS_ON_GROUND
+  ; AND #%00001100
+  BNE CHECK_JUMPING               ; skip if on ground
+
+  LDY #$01
+  LDA #'W'
+  STA TOPTEXT,Y
+
+  ; ORA #PLAYER_CAN_JUMP            ; set can jump flag, wall jump
+  LDA PLAYER_STATE
+  ORA #PLAYER_IS_ON_WALL          ; player is on wall
+  STA PLAYER_STATE
+
+  JMP CHECK_JUMPING               ; when we're moving right, we cannot be moving left, so skip MOVE_L
 
 MOVE_L:
   LDA PLAYER_X
@@ -397,6 +427,21 @@ CHECK_COLLISION_L:
                                   ; of the collision, so we need to add 8 more to compensate
   STA PLAYER_X
 
+  LDA PLAYER_STATE
+  ; ; AND #PLAYER_IS_FALLING
+  AND #PLAYER_IS_ON_GROUND
+  ; AND #%00001100
+  BNE CHECK_JUMPING               ; skip if on ground
+
+  LDY #$01
+  LDA #'W'
+  STA TOPTEXT,Y
+
+  ; ORA #PLAYER_CAN_JUMP            ; set can jump flag, wall jump
+  LDA PLAYER_STATE
+  ORA #PLAYER_IS_ON_WALL          ; player is on wall
+  STA PLAYER_STATE
+
   JMP CHECK_JUMPING
 
 CHECK_JUMPING:
@@ -407,36 +452,54 @@ CHECK_JUMPING:
 
   LDA PLAYER_STATE
   AND #PLAYER_IS_ON_GROUND        ; player is on ground
-  BNE CHECK_COLLISION_D           ; player is on ground
+  BEQ :+
+  JMP CHECK_COLLISION_D           ; player is on ground
+:
 
 IN_AIR: ; gravity
+  ; we're not jumping but we are in air
+  ; accumulate velocity change (sub pixel stuff)
+
   ; #DEBUG
   LDY #$01
   LDA #'A'
   STA TOPTEXT,Y
 
-  ; we're not jumping but we are in air
-  ; accumulate velocity change (sub pixel stuff)
+  LDA PLAYER_STATE
+  AND #PLAYER_IS_ON_WALL          ; player is on wall
+  ; AND #PLAYER_IS_FALLING          ; player is on wall
+  BEQ APPLY_GRAVITY
 
-  ; LDA PLAYER_STATE
-  ; AND #%11110111                  ; reset on ground flag
-  ; ; ORA #PLAYER_IS_FALLING          ; set falling flag
-  ; STA PLAYER_STATE
+  ; we're on the wall
+  ; TODO: we want to slowly increase the speed at which we slide off the wall
+
+  LDA #$00
+  STA PLAYER_VEL_Y
 
   LDA PLAYER_VEL_Y+1              ; byte PLAYER_VEL_Y+1 holds accumulator
   CLC
-  ADC #GRAVITY                    ; accumulate up to 255 by adding #$50 each frame
+  ADC #$50                    ; accumulate up to 255 by adding #$50 each frame
   STA PLAYER_VEL_Y+1              ; store accumulated value
-  ;BCC APPLY_Y_VELOCITY ; skip if < 255
 
   BCS :+                          ; skip if < 255
   JMP APPLY_Y_VELOCITY
 :
   ; if carry set (PLAYER_VEL_Y+1 overflow), decrease Y velocity
   DEC PLAYER_VEL_Y
-  ; LDY PLAYER_VEL_Y
-  ; DEY
-  ; STY PLAYER_VEL_Y
+
+  JMP APPLY_Y_VELOCITY
+
+APPLY_GRAVITY:
+  LDA PLAYER_VEL_Y+1              ; byte PLAYER_VEL_Y+1 holds accumulator
+  CLC
+  ADC #GRAVITY                    ; accumulate up to 255 by adding #$50 each frame
+  STA PLAYER_VEL_Y+1              ; store accumulated value
+
+  BCS :+                          ; skip if < 255
+  JMP APPLY_Y_VELOCITY
+:
+  ; if carry set (PLAYER_VEL_Y+1 overflow), decrease Y velocity
+  DEC PLAYER_VEL_Y
 
   JMP APPLY_Y_VELOCITY
 
@@ -453,7 +516,7 @@ JUMP_PRESSED:
   STA PLAYER_VEL_Y
 
   LDA PLAYER_STATE
-  AND #%11110011                  ; reset on ground and falling
+  AND #%10110011                  ; reset on ground, falling and on wall
   AND #%11111101                  ; reset jumping flag, it was set by the check_input routine before
   STA PLAYER_STATE
 
@@ -508,6 +571,10 @@ CHECK_COLLISION_D:
   ; we're already on ground, so no need to update player y position again
   BNE SKIP_COLLISION_D
 
+  ; LDA PLAYER_STATE
+  ; AND #PLAYER_IS_ON_WALL          ; player is on wall
+  ; BNE ON_WALL
+
   ; check for falling flag and skip if we are not falling
   ; falling is only set, when there is no downward collision
   ; if we jump into a block from below (which we can only do if there is only
@@ -529,8 +596,7 @@ CHECK_COLLISION_D:
   LDA #'D'
   STA TOPTEXT,Y
 
-  ; collision downwards
-  ; reset position
+  ; collision downwards, reset position
   LDA PLAYER_Y
   AND #%11111000                  ; find position above collided tile
   STA PLAYER_Y
@@ -538,7 +604,7 @@ CHECK_COLLISION_D:
   STA PLAYER_VEL_Y
   
   LDA PLAYER_STATE
-  AND #%11111011                  ; reset falling flag
+  AND #%10111011                  ; reset falling and on wall flag
   ORA #PLAYER_IS_ON_GROUND        ; set on ground flag
   ; ORA #PLAYER_CAN_JUMP          ; set can jump flag
   STA PLAYER_STATE
@@ -550,11 +616,38 @@ NO_COLLISION_D:
   LDA #' '
   STA TOPTEXT,Y
 
+  ; LDA PLAYER_STATE
+  ; AND #PLAYER_IS_ON_WALL          ; player is on wall
+  ; BNE ON_WALL
+
   LDA PLAYER_STATE
   ORA #PLAYER_IS_FALLING          ; set falling flag only when there is no collision downwards
   AND #%11110111                  ; reset on ground flag as we're not on ground
+  AND #%11111110                  ; reset can jump flag
   STA PLAYER_STATE
   JMP SKIP_COLLISION_D
+
+; ON_WALL:
+;   ; LDA PLAYER_STATE
+;   ;AND #%10110011                  ; reset on ground and falling flag
+;   ; ORA #%00000001                  ; set can jump flag
+;   ; STA PLAYER_STATE
+
+;   LDA #$00
+;   STA PLAYER_VEL_Y
+
+;   ; STA PLAYER_Y
+
+;   ; LDA PLAYER_Y
+;   ; SEC
+;   ; SBC PLAYER_VEL_Y
+;   ; STA PLAYER_Y
+
+  
+
+;   ; JMP CHECK_COLLISION_D           ; we're moving downwards
+
+  
 
 ; apply before checking for collision
 APPLY_Y_VELOCITY: 
@@ -562,8 +655,11 @@ APPLY_Y_VELOCITY:
   SEC
   SBC PLAYER_VEL_Y
   STA PLAYER_Y
+
+; TEST:
   LDA PLAYER_VEL_Y
   BMI :+
+  ; BEQ SKIP_COLLISION_D
   JMP CHECK_COLLISION_U           ; we're moving upwards
 :
   JMP CHECK_COLLISION_D           ; we're moving downwards
